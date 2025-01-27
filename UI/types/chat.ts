@@ -102,6 +102,7 @@ export interface ElectronBridge {
       };
     }>;
   }>;
+  showOpenDialog(): Promise<string | null>;
 }
 
 declare global {

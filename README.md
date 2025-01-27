@@ -1,6 +1,6 @@
-# Feanor - AI-Powered Chat Interface with LM Studio Integration
+# Feanor - AI Development Acceleration Platform
 
-A powerful desktop chat application built with Python and Electron, featuring seamless integration with LM Studio for local AI model inference. The application combines a modern UI with powerful tools for file analysis, web scraping, and more.
+A powerful desktop tool that enables seamless interaction with local AI models through LM Studio integration. Feanor is designed to accelerate the development of AI tools and agents, providing a comprehensive environment for creating, testing, and deploying AI-powered solutions. Whether you're building custom tools or orchestrating AI agent swarms, Feanor provides the foundation for rapid AI development.
 
 ## Features
 
@@ -18,6 +18,57 @@ A powerful desktop chat application built with Python and Electron, featuring se
   - Tool selection and execution
   - Markdown rendering
 - **Proxy System**: FastAPI-based proxy server for handling LM Studio communication
+
+### Upcoming Features Roadmap
+
+- [ ] **Tool Generation**
+  - Automated tool creation from natural language descriptions
+  - Tool validation and testing framework
+  - Tool marketplace for sharing and discovery
+
+- [ ] **ComfyUI Integration**
+  - Seamless integration with ComfyUI workflows
+  - Custom node creation and management
+  - Visual workflow builder for AI pipelines
+
+- [ ] **Agent Creation**
+  - Agent personality customization
+  - Skill and capability definition
+  - Training and fine-tuning interface
+  - Agent testing and validation suite
+
+- [ ] **Fellowships (AI Agent Swarms)**
+  - Multi-agent orchestration
+  - Inter-agent communication protocols
+  - Task distribution and management
+  - Swarm behavior monitoring
+
+### Additional Features Under Consideration
+
+- [ ] **Knowledge Base Integration**
+  - Vector database support
+  - Document ingestion pipeline
+  - Automated knowledge extraction
+
+- [ ] **Model Management**
+  - Local model repository
+  - Model performance metrics
+  - A/B testing framework
+
+- [ ] **Workflow Automation**
+  - Visual pipeline builder
+  - Task scheduling and automation
+  - Event-driven triggers
+
+- [ ] **Development Tools**
+  - Integrated debugging tools
+  - Performance profiling
+  - Code generation assistance
+
+- [ ] **Deployment Management**
+  - Container orchestration
+  - Environment management
+  - Version control integration
 
 ## Technical Stack
 
