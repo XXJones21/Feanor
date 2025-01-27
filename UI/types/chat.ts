@@ -6,7 +6,7 @@ export type MessageRole = 'user' | 'assistant' | 'system';
 export interface Message {
   role: MessageRole;
   content: string;
-  timestamp?: number;
+  timestamp?: string;
   id?: string;
 }
 
@@ -87,6 +87,11 @@ export class ChatError extends Error {
 /**
  * Electron Bridge Types
  */
+export interface IpcRenderer {
+  invoke(channel: 'save-chat', payload: { chatId: string; messages: Message[] }): Promise<void>;
+  invoke(channel: 'load-chat', chatId: string): Promise<Message[]>;
+}
+
 export interface ElectronBridge {
   invoke(channel: 'chat-completion', payload: {
     messages: Message[];
@@ -103,6 +108,7 @@ export interface ElectronBridge {
     }>;
   }>;
   showOpenDialog(): Promise<string | null>;
+  ipcRenderer: IpcRenderer;
 }
 
 declare global {

@@ -1,5 +1,9 @@
 # Feanor - AI Development Acceleration Platform
 
+<div align="center">
+  <img src="UI/public/images/logo.png" alt="Feanor Logo" width="200"/>
+</div>
+
 A powerful desktop tool that enables seamless interaction with local AI models through LM Studio integration. Feanor is designed to accelerate the development of AI tools and agents, providing a comprehensive environment for creating, testing, and deploying AI-powered solutions. Whether you're building custom tools or orchestrating AI agent swarms, Feanor provides the foundation for rapid AI development.
 
 ## Features
