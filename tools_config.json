@@ -1,0 +1,110 @@
+{
+    "tools": [
+        {
+            "type": "function",
+            "function": {
+                "name": "read_file",
+                "description": "Reads the contents of a file at the given path",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "file_path": {
+                            "type": "string",
+                            "description": "Path to the file to read"
+                        }
+                    },
+                    "required": ["file_path"]
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "analyze_file",
+                "description": "Analyzes a file and returns key information about it",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "file_path": {
+                            "type": "string",
+                            "description": "Path to the file to analyze"
+                        }
+                    },
+                    "required": ["file_path"]
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "read_pdf",
+                "description": "Extracts text content from a PDF file",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "pdf_path": {
+                            "type": "string",
+                            "description": "Path to PDF file"
+                        }
+                    },
+                    "required": ["pdf_path"]
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "analyze_repo",
+                "description": "Analyzes a local git repository",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "repo_path": {
+                            "type": "string",
+                            "description": "Path to local git repo"
+                        }
+                    },
+                    "required": ["repo_path"]
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "scrape_webpage",
+                "description": "Scrapes content from a webpage using BeautifulSoup. Returns title, main text content, and links found on the page. Can target specific content using CSS selectors. Handles rate limiting and request management.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "url": {
+                            "type": "string",
+                            "description": "The URL to scrape (must be a valid http/https URL)"
+                        },
+                        "selector": {
+                            "type": "string",
+                            "description": "Optional CSS selector to target specific content (e.g. 'div.main-content' or 'article.post')"
+                        }
+                    },
+                    "required": ["url"]
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "extract_text",
+                "description": "Simplified webpage scraping that extracts just the main text content and title. Automatically removes scripts, styles, and other non-content elements. Best for quick text extraction when you don't need links or specific targeting.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "url": {
+                            "type": "string",
+                            "description": "The URL to extract text from (must be a valid http/https URL)"
+                        }
+                    },
+                    "required": ["url"]
+                }
+            }
+        }
+    ]
+} 

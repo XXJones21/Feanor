@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>LM Studio Chat</title>
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src http://localhost:* http://127.0.0.1:*">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <div class="sidebar">
+            <div class="title-bar">
+                <div class="window-controls">
+                    <button id="minimizeBtn" class="control minimize"></button>
+                    <button id="maximizeBtn" class="control maximize"></button>
+                    <button id="closeBtn" class="control close"></button>
+                </div>
+            </div>
+            <button id="newChatBtn" class="new-chat-btn">+ New Chat</button>
+            <div id="chatList" class="chat-list"></div>
+            <div class="chat-actions">
+                <button id="deleteChatBtn" class="delete-chat-btn" style="display: none;">🗑️ Delete Chat</button>
+            </div>
+            <div id="toolsList" class="tools-list"></div>
+            <div class="status-indicator">
+                <div class="status-dot disconnected"></div>
+                <span class="status-text">Disconnected</span>
+                <span class="status-details"></span>
+            </div>
+        </div>
+        <div class="chat-container">
+            <div id="messageList" class="message-list"></div>
+            <div id="loadingIndicator" class="loading-container" style="display: none;">
+                <div class="loading-dots">
+                    <div class="dot"></div>
+                    <div class="dot"></div>
+                    <div class="dot"></div>
+                </div>
+            </div>
+            <div class="input-container">
+                <div id="attachmentPreview" class="attachment-preview"></div>
+                <div class="input-area">
+                    <textarea id="messageInput" class="message-input" placeholder="Type a message..."></textarea>
+                    <button id="sendBtn" class="send-btn">Send</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="renderer.js"></script>
+</body>
+</html> 

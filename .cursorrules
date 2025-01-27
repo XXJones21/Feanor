@@ -1,0 +1,48 @@
+{
+  "expertise": [
+    "Electron",
+    "TypeScript",
+    "Tailwind CSS",
+    "React"
+  ],
+  "keyPrinciples": [
+    "Write concise, technical TypeScript code with accurate examples.",
+    "Use functional and declarative programming patterns; avoid classes.",
+    "Prefer iteration and modularization over code duplication.",
+    "Use descriptive variable names with auxiliary verbs (e.g., isLoading, hasError).",
+    "Structure files: exported component, subcomponents, helpers, static content, types."
+  ],
+  "namingConventions": {
+    "directories": "Use lowercase with dashes (e.g., components/auth-wizard).",
+    "components": "Favor named exports."
+  },
+  "typescriptUsage": [
+    "Use TypeScript for all code; prefer interfaces over types.",
+    "Avoid enums; use maps instead.",
+    "Use functional components with TypeScript interfaces."
+  ],
+  "syntaxAndFormatting": [
+    "Use the \"function\" keyword for pure functions.",
+    "Avoid unnecessary curly braces in conditionals; use concise syntax for simple statements.",
+    "Use declarative JSX."
+  ],
+  "uiAndStyling": [
+    "Use Tailwind CSS for styling; implement responsive design with a mobile-first approach.",
+    "Use CSS variables for dynamic theming."
+  ],
+  "performanceOptimization": [
+    "Minimize 'useEffect' and 'setState'; favor React Server Components (RSC).",
+    "Wrap client components in Suspense with fallback.",
+    "Use dynamic loading for non-critical components.",
+    "Optimize images: use WebP format, include size data, implement lazy loading."
+  ],
+  "keyConventions": [
+    "Use path aliases for imports (e.g., '@/components').",
+    "Optimize Web Vitals (LCP, CLS, FID).",
+    "Limit 'use client':",
+    "Favor server components and Next.js SSR.",
+    "Use only for Web API access in small components.",
+    "Avoid for data fetching or state management."
+  ],
+  "additionalGuidance": "Follow Next.js docs for Data Fetching, Rendering, and Routing."
+}

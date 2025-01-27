@@ -1,0 +1,549 @@
+@import "tailwindcss";
+
+:root {
+    --bg-primary: #1a1a1a;
+    --bg-secondary: #2d2d2d;
+    --text-primary: #ffffff;
+    --text-secondary: #b3b3b3;
+    --accent-color: #0066cc;
+    --error-color: #ff4444;
+    --success-color: #00cc66;
+    --border-color: #404040;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    height: 100vh;
+    overflow: hidden;
+}
+
+.app-container {
+    display: flex;
+    height: 100vh;
+}
+
+/* Sidebar */
+.sidebar {
+    width: 200px;
+    background-color: var(--bg-secondary);
+    border-right: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.title-bar {
+    -webkit-app-region: drag;
+    height: 24px;
+    background-color: var(--bg-secondary);
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    padding: 0 8px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.window-controls {
+    -webkit-app-region: no-drag;
+    display: flex;
+    gap: 6px;
+}
+
+.control {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+}
+
+.minimize { background-color: #FFBD2E; }
+.maximize { background-color: #28C940; }
+.close { background-color: #FF5F56; }
+
+.new-chat-btn {
+    margin: 10px;
+    padding: 8px;
+    background-color: var(--accent-color);
+    border: none;
+    border-radius: 6px;
+    color: white;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.85em;
+    transition: background-color 0.2s;
+}
+
+.new-chat-btn:hover {
+    background-color: #0052a3;
+}
+
+.chat-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 6px 10px;
+}
+
+.chat-item {
+    padding: 8px 10px;
+    margin: 2px 0;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    color: var(--text-secondary);
+    font-size: 0.85em;
+}
+
+.chat-item:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.chat-item.active {
+    background-color: rgba(0, 102, 204, 0.2);
+    color: var(--text-primary);
+}
+
+/* Tools List */
+.tools-list {
+    padding: 10px;
+    border-top: 1px solid var(--border-color);
+}
+
+.tools-header {
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: var(--text-secondary);
+    font-size: 0.85em;
+}
+
+.tool-item {
+    padding: 8px 10px;
+    border-radius: 6px;
+    margin: 4px 0;
+    background-color: rgba(255, 255, 255, 0.05);
+    cursor: pointer;
+    transition: background-color 0.2s;
+    font-size: 0.85em;
+}
+
+.tool-item:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.tool-name {
+    font-weight: 600;
+    margin-bottom: 2px;
+    font-size: 0.9em;
+}
+
+.tool-description {
+    font-size: 0.8em;
+    color: var(--text-secondary);
+}
+
+/* Chat Container */
+.chat-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background-color: var(--bg-primary);
+}
+
+.message-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+}
+
+.input-container {
+    padding: 16px;
+    background-color: var(--bg-secondary);
+    border-top: 1px solid var(--border-color);
+}
+
+.input-area {
+    display: flex;
+    gap: 12px;
+}
+
+.message-input {
+    flex: 1;
+    padding: 8px 12px;
+    border-radius: 20px;
+    border: 1px solid var(--border-color);
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 0.9em;
+    resize: none;
+    min-height: 20px;
+    max-height: 200px;
+}
+
+.send-btn {
+    padding: 0 24px;
+    border-radius: 8px;
+    border: none;
+    background-color: var(--accent-color);
+    color: white;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color 0.2s;
+}
+
+.send-btn:hover {
+    background-color: #0052a3;
+}
+
+/* Status Indicator */
+.status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 10px;
+    background-color: var(--bg-secondary);
+    border-top: 1px solid var(--border-color);
+    font-size: 0.85em;
+}
+
+.status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+}
+
+.status-dot.connected {
+    background-color: var(--success-color);
+}
+
+.status-dot.connecting {
+    background-color: var(--accent-color);
+    animation: pulse 1.5s infinite;
+}
+
+.status-dot.disconnected {
+    background-color: var(--error-color);
+}
+
+.status-text {
+    font-size: 0.85em;
+}
+
+.status-details {
+    font-size: 0.8em;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.4; }
+    100% { opacity: 1; }
+}
+
+/* Message Styles */
+.message {
+    max-width: 70%;
+    margin: 4px 0;
+    padding: 8px 12px;
+    border-radius: 16px;
+    line-height: 1.4;
+    font-size: 0.9em;
+}
+
+.message.user {
+    margin-left: auto;
+    margin-right: 8px;
+    background-color: var(--accent-color);
+    border-bottom-right-radius: 4px;
+}
+
+.message.assistant {
+    margin-right: auto;
+    margin-left: 8px;
+    background-color: var(--bg-secondary);
+    border-bottom-left-radius: 4px;
+}
+
+.message pre {
+    background-color: rgba(0, 0, 0, 0.3);
+    padding: 6px;
+    border-radius: 4px;
+    overflow-x: auto;
+    margin: 4px 0;
+    font-size: 0.85em;
+}
+
+.message code {
+    font-family: 'Fira Code', monospace;
+    font-size: 0.85em;
+}
+
+/* Input Area */
+.attachment-preview {
+    margin-bottom: 12px;
+    display: none;
+}
+
+.attachment {
+    display: inline-flex;
+    align-items: center;
+    background-color: rgba(255, 255, 255, 0.1);
+    padding: 8px 12px;
+    border-radius: 6px;
+    gap: 8px;
+}
+
+.attachment button {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 0 4px;
+}
+
+/* Loading Indicator */
+.loading-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.loading-dots {
+    display: flex;
+    gap: 8px;
+}
+
+.dot {
+    width: 8px;
+    height: 8px;
+    background-color: var(--text-secondary);
+    border-radius: 50%;
+    animation: pulse 1.4s infinite;
+}
+
+.dot:nth-child(2) { animation-delay: 0.2s; }
+.dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes pulse {
+    0%, 100% { transform: scale(0.8); opacity: 0.5; }
+    50% { transform: scale(1.2); opacity: 1; }
+}
+
+/* Parameter Dialog */
+.dialog-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.dialog {
+    background-color: var(--bg-secondary);
+    border-radius: 12px;
+    padding: 24px;
+    width: 500px;
+    max-width: 90vw;
+}
+
+.dialog-header {
+    font-size: 1.2em;
+    font-weight: 600;
+    margin-bottom: 16px;
+}
+
+.dialog-content {
+    margin-bottom: 24px;
+}
+
+.param-group {
+    margin-bottom: 16px;
+}
+
+.param-label {
+    display: block;
+    margin-bottom: 8px;
+    color: var(--text-secondary);
+}
+
+.param-input {
+    width: 100%;
+    padding: 8px;
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+}
+
+.param-description {
+    font-size: 0.9em;
+    color: var(--text-secondary);
+    margin-top: 4px;
+}
+
+.dialog-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+.dialog-btn {
+    padding: 8px 16px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.dialog-btn.cancel {
+    background-color: transparent;
+    color: var(--text-secondary);
+}
+
+.dialog-btn.confirm {
+    background-color: var(--accent-color);
+    color: white;
+}
+
+.dialog-btn.confirm:hover {
+    background-color: #0052a3;
+}
+
+/* Error Message */
+.error-message {
+    background-color: rgba(255, 68, 68, 0.1);
+    border: 1px solid var(--error-color);
+    color: var(--error-color);
+    padding: 12px;
+    border-radius: 8px;
+    margin: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.error-message button {
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: var(--error-color);
+    cursor: pointer;
+}
+
+/* Thoughts Section */
+.thoughts-section {
+    margin: 8px 0;
+    padding: 12px 16px;
+    border-radius: 8px;
+    background-color: rgba(45, 45, 45, 0.6);
+    font-family: 'Fira Code', monospace;
+}
+
+.thoughts-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    user-select: none;
+    color: #6B7280;
+    font-size: 0.9em;
+}
+
+.thoughts-header .toggle-icon {
+    transition: transform 0.3s ease;
+    color: #6B7280;
+    font-size: 0.8em;
+}
+
+.thoughts-header.collapsed .toggle-icon {
+    transform: rotate(-90deg);
+}
+
+.thoughts-content {
+    margin-top: 12px;
+    color: #D1D5DB;
+    font-size: 0.9em;
+    line-height: 1.5;
+    white-space: pre-wrap;
+}
+
+.thoughts-content.collapsed {
+    display: none;
+}
+
+.thoughts-time {
+    color: #6B7280;
+    font-size: 0.85em;
+    margin-left: auto;
+}
+
+.thoughts-label {
+    color: #6B7280;
+    font-weight: 500;
+}
+
+/* Error Message in Chat */
+.message.error {
+    background-color: rgba(255, 68, 68, 0.1);
+    border: 1px solid var(--error-color);
+    color: var(--text-primary);
+}
+
+.error-suggestions {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.error-suggestion-item {
+    padding: 4px 0;
+    color: var(--text-secondary);
+    font-size: 0.85em;
+}
+
+.error-suggestion-item:before {
+    content: "•";
+    margin-right: 8px;
+    color: var(--accent-color);
+}
+
+/* Chat Actions */
+.chat-actions {
+    padding: 0 10px;
+    margin-bottom: 10px;
+}
+
+.delete-chat-btn {
+    width: 100%;
+    padding: 8px;
+    background-color: var(--error-color);
+    border: none;
+    border-radius: 6px;
+    color: white;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.85em;
+    transition: background-color 0.2s, opacity 0.2s;
+    opacity: 0.8;
+}
+
+.delete-chat-btn:hover {
+    opacity: 1;
+}
+
+.delete-chat-btn:disabled {
+    background-color: #666;
+    cursor: not-allowed;
+    opacity: 0.5;
+}
