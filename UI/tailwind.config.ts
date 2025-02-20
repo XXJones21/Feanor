@@ -74,11 +74,28 @@ const config: Config = {
                         'accordion-up': {
                                 from: { height: 'var(--radix-accordion-content-height)' },
                                 to: { height: '0' }
+                        },
+                        'bounce-delay': {
+                                '0%, 80%, 100%': { transform: 'scale(0)' },
+                                '40%': { transform: 'scale(1.0)' }
+                        },
+                        'fade-in': {
+                                from: { opacity: '0', transform: 'translateY(10px)' },
+                                to: { opacity: '1', transform: 'translateY(0)' }
+                        },
+                        'blink': {
+                                '0%, 100%': { opacity: '1' },
+                                '50%': { opacity: '0' }
                         }
                 },
                 animation: {
                         'accordion-down': 'accordion-down 0.2s ease-out',
-                        'accordion-up': 'accordion-up 0.2s ease-out'
+                        'accordion-up': 'accordion-up 0.2s ease-out',
+                        'bounce-delay-0': 'bounce-delay 1.4s infinite ease-in-out both',
+                        'bounce-delay-200': 'bounce-delay 1.4s infinite ease-in-out both 0.2s',
+                        'bounce-delay-400': 'bounce-delay 1.4s infinite ease-in-out both 0.4s',
+                        'fade-in': 'fade-in 0.3s ease-in',
+                        'blink': 'blink 1s infinite'
                 }
         }
   },

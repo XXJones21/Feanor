@@ -3,11 +3,28 @@
  */
 export type MessageRole = 'user' | 'assistant' | 'system';
 
+/**
+ * Represents a chat message
+ */
 export interface Message {
-  role: MessageRole;
+  /** Unique identifier for the message */
+  id: string;
+  /** The content of the message */
   content: string;
-  timestamp?: string;
-  id?: string;
+  /** The role of the message sender (e.g. 'user', 'assistant') */
+  role: 'user' | 'assistant' | 'system';
+  /** Optional file attachment */
+  attachment?: FileAttachment;
+  /** Timestamp when the message was created (Unix timestamp in milliseconds) */
+  timestamp: number;
+  /** Whether the message is currently being streamed */
+  isStreaming?: boolean;
+  /** Whether there was an error processing this message */
+  hasError?: boolean;
+  /** Status of the message */
+  status?: 'complete' | 'streaming' | 'error' | 'pending';
+  /** Whether the message can be retried if it failed */
+  retryable?: boolean;
 }
 
 /**

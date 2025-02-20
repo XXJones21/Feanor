@@ -105,6 +105,27 @@
                     "required": ["url"]
                 }
             }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "analyze_resume",
+                "description": "Analyzes a resume against a job posting to provide tailored feedback and improvements",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "resume_text": {
+                            "type": "string",
+                            "description": "The content of the resume to analyze"
+                        },
+                        "job_posting": {
+                            "type": "string",
+                            "description": "The job posting text to compare against"
+                        }
+                    },
+                    "required": ["resume_text", "job_posting"]
+                }
+            }
         }
     ]
 } 

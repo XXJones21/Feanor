@@ -1,122 +1,137 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import MessageList from './Chat/MessageList';
-import InputArea from './Chat/InputArea';
+'use client';
+
+import React, { useState, useCallback, useEffect } from 'react';
 import Sidebar from './Sidebar';
 import TitleBar from './Common/TitleBar';
-import { useTools } from '../hooks/useTools';
-import { useChatHistory } from '../hooks/useChatHistory';
+import MessageList from './Chat/MessageList';
+import InputArea from './Chat/InputArea';
 import ErrorBoundary from './Common/ErrorBoundary';
-import { Message, FileAttachment, ChatError } from '../types/chat';
+import { ResumeAnalyzer } from './ResumeAnalyzer';
+import { Message } from '../types/chat';
 
 const ChatInterface: React.FC = () => {
     const [currentChatId, setCurrentChatId] = useState<string>(Date.now().toString());
-    const { messages, addMessage, loadChat, initializeChat } = useChatHistory();
-    const { tools, executeToolByName } = useTools();
-    const [isLoading, setIsLoading] = useState<boolean>(false);
-
-    // Initialize chat when component mounts or when currentChatId changes
-    useEffect(() => {
-        if (currentChatId) {
-            loadChat(currentChatId);
+    const [currentTool, setCurrentTool] = useState<string | null>(null);
+    const [messages, setMessages] = useState<Message[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
+    const [tools] = useState([
+        {
+            name: 'Resume Analyzer',
+            description: 'Analyze and improve your resume based on job postings',
+            component: 'ResumeAnalyzer',
+            icon: '📄'
         }
-    }, [currentChatId, loadChat]);
+    ]);
+
+    // Initialize chat with system message
+    useEffect(() => {
+        if (messages.length === 0) {
+            const systemMessage: Message = {
+                id: crypto.randomUUID(),
+                role: 'system',
+                content: 'You are a helpful AI assistant. Provide direct, concise answers without showing your thinking process. Focus on accuracy and clarity.',
+                timestamp: Date.now()
+            };
+            setMessages([systemMessage]);
+        }
+    }, []);
 
     const handleNewChat = useCallback(() => {
         const newId = Date.now().toString();
         setCurrentChatId(newId);
-        initializeChat(newId);
-    }, [initializeChat]);
+        setCurrentTool(null);
+        // Reset messages with system message
+        const systemMessage: Message = {
+            id: crypto.randomUUID(),
+            role: 'system',
+            content: 'You are a helpful AI assistant. Provide direct, concise answers without showing your thinking process. Focus on accuracy and clarity.',
+            timestamp: Date.now()
+        };
+        setMessages([systemMessage]);
+    }, []);
 
-    const retryMessage = async (messageIndex: number): Promise<void> => {
-        if (messageIndex >= 0 && messageIndex < messages.length) {
-            const messagesToRetry = messages.slice(0, messageIndex + 1);
-            const messageToRetry = messagesToRetry[messageIndex];
-            if (messageToRetry) {
-                await handleSendMessage(messageToRetry.content);
-            }
-        }
+    const handleToolSelect = (toolName: string) => {
+        setCurrentTool(toolName);
     };
 
-    const handleSendMessage = async (content: string, attachment: FileAttachment | null = null): Promise<void> => {
-        if (!content.trim() && !attachment) return;
+    const handleSendMessage = async (content: string) => {
+        if (!currentChatId) return;
         
         setIsLoading(true);
-        
         try {
-            // Handle file attachment if present
-            let attachmentResult: unknown = null;
-            if (attachment) {
-                attachmentResult = await executeToolByName('analyze_file', {
-                    file_path: attachment.path
-                });
-            }
-
-            // Add user message
-            const userMessage: Message = {
+            // Create user message
+            const newMessage: Message = {
+                id: crypto.randomUUID(),
                 role: 'user',
-                content: attachment 
-                    ? `${content} [Attached: ${attachment.name}]`
-                    : content,
-                timestamp: Date.now(),
-                id: crypto.randomUUID()
+                content,
+                timestamp: Date.now()
             };
-            await addMessage(currentChatId, userMessage);
+            
+            // Update messages state with new message
+            const updatedMessages = [...messages, newMessage];
+            setMessages(updatedMessages);
 
-            // Add attachment result if present
-            if (attachmentResult) {
-                await addMessage(currentChatId, {
-                    role: 'system',
-                    content: `File analysis result:\n${JSON.stringify(attachmentResult, null, 2)}`,
-                    timestamp: Date.now(),
-                    id: crypto.randomUUID()
+            // Prepare request messages (only role and content needed for API)
+            const requestMessages = updatedMessages.map(msg => ({
+                role: msg.role,
+                content: msg.content
+            }));
+
+            // Send request through IPC
+            try {
+                const response = await window.electron.invoke('chat-completion', {
+                    messages: requestMessages,
+                    functions: []
                 });
+
+                if (!response?.choices?.[0]?.message?.content) {
+                    throw new Error('Invalid response from server');
+                }
+
+                // Add assistant's response
+                const assistantMessage: Message = {
+                    id: crypto.randomUUID(),
+                    role: 'assistant',
+                    content: response.choices[0].message.content,
+                    timestamp: Date.now()
+                };
+                setMessages(prev => [...prev, assistantMessage]);
+
+            } catch (error) {
+                console.error('Error in chat completion:', error);
+                // Add error message to the chat
+                const errorMessage: Message = {
+                    id: crypto.randomUUID(),
+                    role: 'system',
+                    content: 'Failed to send message. Please try again.',
+                    timestamp: Date.now(),
+                    hasError: true
+                };
+                setMessages(prev => [...prev, errorMessage]);
             }
-
-            // Get AI response without streaming
-            const allMessages: Message[] = [...messages, userMessage];
-            const response = await window.electron.invoke('chat-completion', {
-                messages: allMessages,
-                functions: tools,
-                temperature: 0.7,
-                stream: false,
-                function_call: "auto",
-                model: 'local-model'
-            });
-
-            // Process assistant's response
-            let assistantContent = response.choices[0].message.content;
-            
-            // Filter out thinking process
-            if (assistantContent.includes('<think>') && assistantContent.includes('</think>')) {
-                assistantContent = assistantContent.split('</think>')[1].trim();
-            }
-
-            // Add assistant's response
-            await addMessage(currentChatId, {
-                role: 'assistant',
-                content: assistantContent,
-                timestamp: Date.now(),
-                id: crypto.randomUUID()
-            });
-
-        } catch (error) {
-            console.error('Error sending message:', error);
-            const chatError = error instanceof ChatError 
-                ? error 
-                : new ChatError(
-                    error instanceof Error ? error.message : 'Unknown error occurred',
-                    'CHAT_ERROR'
-                  );
-            
-            await addMessage(currentChatId, {
-                role: 'system',
-                content: `Error: ${chatError.message}`,
-                timestamp: Date.now(),
-                id: crypto.randomUUID()
-            });
         } finally {
             setIsLoading(false);
         }
+    };
+
+    const renderContent = () => {
+        if (currentTool === 'Resume Analyzer') {
+            return <ResumeAnalyzer />;
+        }
+
+        return (
+            <>
+                <MessageList
+                    messages={messages}
+                    isLoading={isLoading}
+                    onRetry={async () => {}}
+                />
+                <InputArea
+                    onSendMessage={handleSendMessage}
+                    isLoading={isLoading}
+                />
+            </>
+        );
     };
 
     return (
@@ -127,22 +142,12 @@ const ChatInterface: React.FC = () => {
                     onChatSelect={setCurrentChatId}
                     onNewChat={handleNewChat}
                     tools={tools}
-                    onToolSelect={executeToolByName}
+                    onToolSelect={handleToolSelect}
                 />
                 
                 <div className="flex flex-col h-full">
                     <TitleBar />
-                    
-                    <MessageList
-                        messages={messages}
-                        isLoading={isLoading}
-                        onRetry={retryMessage}
-                    />
-                    
-                    <InputArea
-                        onSendMessage={handleSendMessage}
-                        isLoading={isLoading}
-                    />
+                    {renderContent()}
                 </div>
             </div>
         </ErrorBoundary>

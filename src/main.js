@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, protocol } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const fetch = require('node-fetch');
@@ -24,24 +24,224 @@ ipcMain.handle('process-message', async (event, message) => {
     return processMessage(message);
 });
 
+// Update these constants at the top of the file
+const PROXY_PORT = 4892;
+const PROXY_URL = `http://127.0.0.1:${PROXY_PORT}`;
+const LM_STUDIO_PORT = 4891;
+const LM_STUDIO_URL = `http://127.0.0.1:${LM_STUDIO_PORT}`;
+const DEFAULT_MODEL = 'qwen2.5-7b-instruct';  // Using one of the available models
+
+// Add cache for model information
+let modelCache = {
+    activeModel: null,
+    availableModels: null,
+    lastCheck: 0
+};
+
+// Add protocol registration
+function registerProxyProtocol() {
+    protocol.handle('proxy', async (request) => {
+        try {
+            const targetUrl = request.url.replace('proxy://', '');
+            const proxyUrl = `${PROXY_URL}/${targetUrl}`;
+            
+            console.log('Proxying request:', {
+                originalUrl: request.url,
+                targetUrl: proxyUrl,
+                method: request.method,
+                headers: request.headers
+            });
+
+            // Only allow POST requests to chat completions endpoint
+            if (targetUrl.includes('chat/completions') && request.method !== 'POST') {
+                console.warn('Rejected non-POST request to chat completions endpoint');
+                return new Response(JSON.stringify({ 
+                    error: 'Only POST method is allowed for chat completions' 
+                }), {
+                    status: 405,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Access-Control-Allow-Origin': 'app://',
+                        'Access-Control-Allow-Methods': 'POST',
+                        'Access-Control-Allow-Headers': 'Content-Type'
+                    }
+                });
+            }
+
+            const response = await fetch(proxyUrl, {
+                method: request.method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Origin': 'app://',
+                    'Access-Control-Request-Method': request.method,
+                    'Access-Control-Request-Headers': 'Content-Type'
+                },
+                credentials: 'include',
+                body: request.method !== 'GET' ? request.body : undefined
+            });
+
+            // Add CORS headers to response
+            const headers = new Headers(response.headers);
+            headers.set('Access-Control-Allow-Origin', 'app://');
+            headers.set('Access-Control-Allow-Methods', 'POST');
+            headers.set('Access-Control-Allow-Headers', 'Content-Type');
+
+            return new Response(response.body, {
+                status: response.status,
+                headers
+            });
+        } catch (error) {
+            console.error('Proxy protocol error:', error);
+            return new Response(JSON.stringify({ error: error.message }), {
+                status: 500,
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Access-Control-Allow-Origin': 'app://',
+                    'Access-Control-Allow-Methods': 'POST',
+                    'Access-Control-Allow-Headers': 'Content-Type'
+                }
+            });
+        }
+    });
+}
+
+// Add function to get the active model from LM Studio
+async function getActiveModel(forceRefresh = false) {
+    const CACHE_DURATION = 30000; // 30 seconds
+    const now = Date.now();
+
+    // Use cached model if available and cache isn't expired
+    if (!forceRefresh && 
+        modelCache.activeModel && 
+        modelCache.lastCheck && 
+        (now - modelCache.lastCheck) < CACHE_DURATION) {
+        return modelCache.activeModel;
+    }
+
+    try {
+        // First get all available models if not cached
+        if (!modelCache.availableModels || forceRefresh) {
+            const modelsResponse = await fetch(`${LM_STUDIO_URL}/v1/models`, {
+                method: 'GET',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            
+            if (!modelsResponse.ok) {
+                throw new Error(`Failed to get models: ${modelsResponse.statusText}`);
+            }
+
+            const modelsData = await modelsResponse.json();
+            modelCache.availableModels = modelsData.data.map(m => m.id);
+            console.log('Available models:', modelCache.availableModels);
+        }
+
+        // Make a test request to see which model responds
+        const testResponse = await fetch(`${LM_STUDIO_URL}/v1/chat/completions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                messages: [{ role: 'system', content: 'model_check' }],
+                model: modelCache.availableModels[0],
+                max_tokens: 1
+            })
+        });
+
+        if (!testResponse.ok) {
+            throw new Error(`Test request failed: ${testResponse.statusText}`);
+        }
+
+        const testData = await testResponse.json();
+        if (testData.model) {
+            console.log('Active model detected:', testData.model);
+            modelCache.activeModel = testData.model;
+            modelCache.lastCheck = now;
+            return modelCache.activeModel;
+        }
+
+        // If no model info in response, use first available
+        console.log('Using first available model:', modelCache.availableModels[0]);
+        modelCache.activeModel = modelCache.availableModels[0];
+        modelCache.lastCheck = now;
+        return modelCache.activeModel;
+    } catch (error) {
+        console.error('Error getting active model:', {
+            message: error.message,
+            stack: error.stack
+        });
+        // Clear cache on error
+        modelCache = {
+            activeModel: null,
+            availableModels: null,
+            lastCheck: 0
+        };
+        throw error;
+    }
+}
+
+// Add a function to check both proxy and LM Studio
+async function checkConnections() {
+    console.log('Checking connections...');
+    
+    try {
+        // Get the active model (this will also check LM Studio connection)
+        const activeModel = await getActiveModel(true); // Force refresh on startup
+        console.log(`Active model: ${activeModel}`);
+
+        // Check proxy server with active model using proxy protocol
+        console.log('Checking proxy server connection...');
+        const proxyResponse = await fetch('proxy://v1/chat/completions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                messages: [{ role: 'system', content: 'connection_test' }],
+                model: activeModel,
+                max_tokens: 1
+            })
+        });
+        console.log('Proxy server response:', {
+            status: proxyResponse.status,
+            statusText: proxyResponse.statusText
+        });
+
+        return proxyResponse.ok;
+    } catch (error) {
+        console.error('Connection check error:', {
+            message: error.message,
+            stack: error.stack
+        });
+        return false;
+    }
+}
+
 async function createWindow() {
+    // Register custom protocol before creating window
+    registerProxyProtocol();
+    
     mainWindow = new BrowserWindow({
         width: 1200,
         height: 800,
         webPreferences: {
-            nodeIntegration: true,
-            contextIsolation: false,
-            enableRemoteModule: true
+            nodeIntegration: false,
+            contextIsolation: true,
+            preload: path.join(__dirname, 'preload.js')
         },
         titleBarStyle: 'hidden',
         frame: false
     });
 
-    // Check LM Studio connection before loading
-    const isConnected = await ErrorHandler.checkLMStudioConnection();
+    // Check both proxy and LM Studio connections before loading
+    const isConnected = await checkConnections();
     if (!isConnected) {
-        const shouldRetry = await ErrorHandler.showConnectionError(mainWindow);
-        if (shouldRetry) {
+        const shouldRetry = await dialog.showMessageBox(mainWindow, {
+            type: 'error',
+            title: 'Connection Error',
+            message: 'Could not connect to LM Studio or the proxy server.',
+            detail: `Please ensure:\n1. LM Studio is running on port ${LM_STUDIO_PORT}\n2. The proxy server is running on port ${PROXY_PORT}\n3. No firewall is blocking the connections`,
+            buttons: ['Retry', 'Exit'],
+            defaultId: 0
+        });
+        
+        if (shouldRetry.response === 0) {
             return createWindow();
         }
         app.quit();
@@ -63,7 +263,7 @@ async function createWindow() {
 }
 
 // Load tools configuration
-const TOOLS_CONFIG_PATH = path.join(__dirname, '../tools_config.json');
+const TOOLS_CONFIG_PATH = path.join(__dirname, '../Tools/tools_config.json');
 let toolsConfig = {};
 
 try {
@@ -81,42 +281,60 @@ if (!fs.existsSync(CHATS_DIR)) {
 // IPC Handlers
 ipcMain.handle('get-tools-config', () => toolsConfig);
 
-// Update these constants at the top of the file
-const PROXY_PORT = 4892;  // The port where our proxy server is running
-const PROXY_URL = `http://127.0.0.1:${PROXY_PORT}`;
-
-// Update the chat completion endpoint
+// Update the chat completion endpoint to use node-fetch directly
 ipcMain.handle('chat-completion', async (event, { messages, functions }) => {
+    console.log('Main process received chat-completion request:', { messages, functions });
     try {
+        // Get the active model
+        const activeModel = await getActiveModel();
+
         // Remove any duplicate messages
         const uniqueMessages = messages.filter((message, index, self) =>
             index === self.findIndex((m) => m.content === message.content)
         );
 
-        console.log('Sending chat completion request:', { messages: uniqueMessages, functions });
-        
-        const response = await fetch(`${PROXY_URL}/v1/chat/completions`, {
+        const requestOptions = {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json'
+            },
             body: JSON.stringify({
-                model: 'local-model',
+                model: activeModel,
                 messages: uniqueMessages,
                 temperature: 0.2,
                 stream: false,
                 functions,
                 function_call: 'auto'
             })
+        };
+
+        console.log('Sending request through proxy protocol:', {
+            url: 'proxy://v1/chat/completions',
+            options: {
+                ...requestOptions,
+                body: JSON.parse(requestOptions.body)
+            }
         });
+
+        // Use our custom proxy protocol
+        const response = await fetch('proxy://v1/chat/completions', requestOptions);
         
         if (!response.ok) {
+            console.error('Proxy server error:', {
+                status: response.status,
+                statusText: response.statusText,
+                headers: Object.fromEntries(response.headers.entries())
+            });
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         
         const data = await response.json();
-        console.log('Chat completion response:', data);
         return data;
     } catch (error) {
-        console.error('Chat completion error:', error);
+        console.error('Chat completion error:', {
+            message: error.message,
+            stack: error.stack
+        });
         const action = await ErrorHandler.handleAPIError(error, mainWindow);
         if (action === 'retry') {
             return ipcMain.handle('chat-completion', event, { messages, functions });
@@ -139,14 +357,14 @@ ipcMain.handle('chat-completion-stream', async (event, { messages, functions, si
         console.log('Sending streaming chat completion request:', { messages: uniqueMessages, functions });
         
         const controller = new AbortController();
-        // If a signal is provided, listen for abort events
         if (signal) {
             signal.addEventListener('abort', () => {
                 controller.abort();
             });
         }
 
-        const response = await fetch(`${PROXY_URL}/v1/chat/completions`, {
+        // Use proxy protocol for streaming requests
+        const response = await fetch('proxy://v1/chat/completions', {
             method: 'POST',
             headers: { 
                 'Content-Type': 'application/json',
@@ -155,7 +373,7 @@ ipcMain.handle('chat-completion-stream', async (event, { messages, functions, si
                 'Connection': 'keep-alive'
             },
             body: JSON.stringify({
-                model: 'local-model',
+                model: await getActiveModel(),
                 messages: uniqueMessages,
                 temperature: 0.2,
                 stream: true,
@@ -169,13 +387,11 @@ ipcMain.handle('chat-completion-stream', async (event, { messages, functions, si
             throw new Error(`HTTP error! status: ${response.status}`);
         }
 
-        // Return the response directly for streaming
         return {
             body: response.body,
             headers: response.headers,
             status: response.status
         };
-        
     } catch (error) {
         console.error('Streaming chat completion error:', error);
         if (error.name === 'AbortError') {

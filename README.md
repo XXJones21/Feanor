@@ -88,16 +88,20 @@ A powerful desktop tool that enables seamless interaction with local AI models t
 ## Project Structure
 
 ```
-├── app/                  # Electron app components
-├── components/           # UI components
-├── hooks/               # Custom React hooks
-├── lib/                 # Shared utilities
-├── src/                 # Source code
-├── UI/                  # UI assets and styles
-├── tools/               # Tool implementations
-├── chat_gui.py          # Main chat interface
-├── lmstudio_proxy.py    # LM Studio proxy server
-├── tools_config.json    # Tool configurations
+├── Backend/             # Backend server components
+│   └── lmstudio_proxy.py    # LM Studio proxy server
+├── UI/                  # UI components and assets
+│   ├── components/      # React components
+│   ├── hooks/          # Custom React hooks
+│   ├── lib/            # Shared utilities
+│   ├── public/         # Static assets
+│   ├── services/       # API services
+│   ├── types/          # TypeScript type definitions
+│   └── styles.css      # Global styles
+├── src/                # Electron main process
+│   ├── main.js         # Main process entry
+│   ├── preload.js      # Preload scripts
+│   └── renderer.js     # Renderer process
 └── various config files # (package.json, tsconfig.json, etc.)
 ```
 
@@ -105,53 +109,76 @@ A powerful desktop tool that enables seamless interaction with local AI models t
 
 1. Install dependencies:
    ```bash
-   npm install        # For Electron/UI dependencies
-   pip install -r requirements.txt  # For Python dependencies
+   # Install Node.js dependencies
+   npm install
+
+   # Install Python dependencies
+   pip install -r requirements.txt
    ```
 
 2. Configure LM Studio:
    - Install LM Studio
-   - Configure it to run on port 4891 (default)
+   - Configure it to run on port 4891 (default LM Studio port)
+   - Ensure LM Studio is running before starting the application
 
 3. Start the application:
    ```bash
-   # Start the proxy server
-   python lmstudio_proxy.py
+   # Start the proxy server (from project root)
+   # This will run on port 4892 and connect to LM Studio on port 4891
+   python Backend/lmstudio_proxy.py
 
-   # Start the application
+   # In a new terminal, start the Electron application
    npm start
+   ```
+
+4. Development Setup:
+   ```bash
+   # Build Tailwind CSS
+   npm run build:css
+
+   # Watch for CSS changes (optional)
+   npm run build:css -- --watch
    ```
 
 ## Development
 
 - **Adding New Tools**:
-  1. Define tool in `tools_config.json`
-  2. Implement handler in `tools/` directory
-  3. Register in `tool_handlers.py`
+  1. Define tool in `Backend/tools_config.json`
+  2. Implement handler in `Backend/tools/` directory
+  3. Register in `Backend/tool_handlers.py`
 
 - **UI Modifications**:
-  - Frontend components in `components/`
-  - Styles in `UI/public/styles.css`
-  - Main chat interface in `chat_gui.py`
+  - React components in `UI/components/`
+  - Styles in `UI/styles.css`
+  - TypeScript types in `UI/types/`
+  - API services in `UI/services/`
 
 ## Architecture
 
 ### Component Overview
 
-1. **Chat Interface** (`chat_gui.py`):
-   - Handles user interactions
-   - Manages chat history
-   - Integrates tool execution
+1. **Frontend** (`UI/`):
+   - React components for user interface
+   - TypeScript for type safety
+   - Tailwind CSS for styling
+   - Electron renderer process integration
 
-2. **Proxy Server** (`lmstudio_proxy.py`):
+2. **Proxy Server** (`Backend/lmstudio_proxy.py`):
+   - FastAPI server running on port 4892
    - Manages communication with LM Studio
    - Handles tool execution requests
    - Provides health checking
 
 3. **Tool System**:
-   - Configurable via `tools_config.json`
+   - Configurable via `Backend/tools_config.json`
    - Extensible architecture
    - Support for async operations
+   - Built-in tools:
+     - File Analysis
+     - PDF Reading
+     - Web Scraping
+     - Git Repository Analysis
+     - Text Extraction
 
 ## Contributing
 

@@ -1,10 +1,16 @@
 from fastapi import FastAPI, Request, HTTPException
 import httpx
-from tool_handlers import TOOL_HANDLERS
 import json
 import logging
 import asyncio
 import time
+import sys
+import os
+
+# Add the project root to Python path to allow imports from Tools directory
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from Tools.tool_handlers import TOOL_HANDLERS
+
 from fastapi.responses import JSONResponse, StreamingResponse
 from typing import AsyncGenerator
 
@@ -15,7 +21,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI()
 
 # Load tool configurations
-with open('tools_config.json', 'r') as f:
+with open('Tools/tools_config.json', 'r') as f:
     TOOLS_CONFIG = json.load(f)
 
 LMSTUDIO_URL = "http://localhost:4891/v1/chat/completions"

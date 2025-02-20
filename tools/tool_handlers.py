@@ -1,12 +1,14 @@
-from tools.file_reader import FileReader
-from tools.pdf_reader import PDFReader
-from tools.repo_analyzer import RepoAnalyzer
-from tools.web_scraper import WebScraper
+from .Utilities.file_reader import FileReader
+from .Utilities.pdf_reader import PDFReader
+from .Utilities.repo_analyzer import RepoAnalyzer
+from .Utilities.web_scraper import WebScraper
+from .Utilities.resume_analyzer import ResumeAnalyzer
 
 file_reader = FileReader()
 pdf_reader = PDFReader()
 repo_analyzer = RepoAnalyzer()
 web_scraper = WebScraper()
+resume_analyzer = ResumeAnalyzer()
 
 def handle_read_file(params):
     return file_reader.read_file(params["file_path"])
@@ -29,6 +31,11 @@ def handle_extract_text(params):
     url = params.get("url")
     return web_scraper.extract_text(url)
 
+def handle_analyze_resume(params):
+    resume_text = params.get("resume_text")
+    job_posting = params.get("job_posting")
+    return resume_analyzer.analyze_resume(resume_text, job_posting)
+
 # Map tool names to handler functions
 TOOL_HANDLERS = {
     "read_file": handle_read_file,
@@ -36,5 +43,6 @@ TOOL_HANDLERS = {
     "read_pdf": handle_read_pdf,
     "analyze_repo": handle_analyze_repo,
     "scrape_webpage": handle_scrape_webpage,
-    "extract_text": handle_extract_text
+    "extract_text": handle_extract_text,
+    "analyze_resume": handle_analyze_resume
 } 
