@@ -8,6 +8,7 @@ import InputArea from './Chat/InputArea';
 import ErrorBoundary from './Common/ErrorBoundary';
 import { ResumeAnalyzer } from './ResumeAnalyzer';
 import { Message } from '../types/chat';
+import { IpcChannels } from '../types/electron';
 
 const ChatInterface: React.FC = () => {
     const [currentChatId, setCurrentChatId] = useState<string>(Date.now().toString());
@@ -30,7 +31,8 @@ const ChatInterface: React.FC = () => {
                 id: crypto.randomUUID(),
                 role: 'system',
                 content: 'You are a helpful AI assistant. Provide direct, concise answers without showing your thinking process. Focus on accuracy and clarity.',
-                timestamp: Date.now()
+                timestamp: Date.now(),
+                status: 'complete' as const
             };
             setMessages([systemMessage]);
         }
@@ -45,7 +47,8 @@ const ChatInterface: React.FC = () => {
             id: crypto.randomUUID(),
             role: 'system',
             content: 'You are a helpful AI assistant. Provide direct, concise answers without showing your thinking process. Focus on accuracy and clarity.',
-            timestamp: Date.now()
+            timestamp: Date.now(),
+            status: 'complete' as const
         };
         setMessages([systemMessage]);
     }, []);
@@ -63,8 +66,9 @@ const ChatInterface: React.FC = () => {
             const newMessage: Message = {
                 id: crypto.randomUUID(),
                 role: 'user',
-                content,
-                timestamp: Date.now()
+                content: content,
+                timestamp: Date.now(),
+                status: 'pending' as const
             };
             
             // Update messages state with new message
@@ -79,9 +83,12 @@ const ChatInterface: React.FC = () => {
 
             // Send request through IPC
             try {
-                const response = await window.electron.invoke('chat-completion', {
+                const response = await window.electron.invoke(IpcChannels.CHAT_COMPLETION, {
                     messages: requestMessages,
-                    functions: []
+                    functions: [],
+                    temperature: 0.7,
+                    stream: false,
+                    function_call: 'auto'
                 });
 
                 if (!response?.choices?.[0]?.message?.content) {
@@ -93,7 +100,8 @@ const ChatInterface: React.FC = () => {
                     id: crypto.randomUUID(),
                     role: 'assistant',
                     content: response.choices[0].message.content,
-                    timestamp: Date.now()
+                    timestamp: Date.now(),
+                    status: 'complete' as const
                 };
                 setMessages(prev => [...prev, assistantMessage]);
 
@@ -105,7 +113,11 @@ const ChatInterface: React.FC = () => {
                     role: 'system',
                     content: 'Failed to send message. Please try again.',
                     timestamp: Date.now(),
-                    hasError: true
+                    status: 'error' as const,
+                    error: {
+                        message: 'Failed to send message. Please try again.',
+                        retryable: true
+                    }
                 };
                 setMessages(prev => [...prev, errorMessage]);
             }

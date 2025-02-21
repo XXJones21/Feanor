@@ -1,7 +1,24 @@
 /**
  * Message Types
  */
-export type MessageRole = 'user' | 'assistant' | 'system';
+export type MessageRole = 'system' | 'user' | 'assistant';
+
+/**
+ * Message status type
+ */
+export type MessageStatus = 'complete' | 'streaming' | 'error' | 'pending';
+
+/**
+ * Error details type
+ */
+export interface MessageError {
+  /** Error message to display */
+  message: string;
+  /** Whether the error can be retried */
+  retryable: boolean;
+  /** Error code for categorization */
+  code?: string;
+}
 
 /**
  * Represents a chat message
@@ -12,19 +29,17 @@ export interface Message {
   /** The content of the message */
   content: string;
   /** The role of the message sender (e.g. 'user', 'assistant') */
-  role: 'user' | 'assistant' | 'system';
+  role: MessageRole;
   /** Optional file attachment */
   attachment?: FileAttachment;
   /** Timestamp when the message was created (Unix timestamp in milliseconds) */
   timestamp: number;
   /** Whether the message is currently being streamed */
   isStreaming?: boolean;
-  /** Whether there was an error processing this message */
-  hasError?: boolean;
   /** Status of the message */
-  status?: 'complete' | 'streaming' | 'error' | 'pending';
-  /** Whether the message can be retried if it failed */
-  retryable?: boolean;
+  status: MessageStatus;
+  /** Error information if status is 'error' */
+  error?: MessageError;
 }
 
 /**
@@ -109,27 +124,5 @@ export interface IpcRenderer {
   invoke(channel: 'load-chat', chatId: string): Promise<Message[]>;
 }
 
-export interface ElectronBridge {
-  invoke(channel: 'chat-completion', payload: {
-    messages: Message[];
-    functions: Tool[];
-    temperature: number;
-    stream: boolean;
-    function_call: 'auto' | 'none';
-    model: string;
-  }): Promise<{
-    choices: Array<{
-      message: {
-        content: string;
-      };
-    }>;
-  }>;
-  showOpenDialog(): Promise<string | null>;
-  ipcRenderer: IpcRenderer;
-}
-
-declare global {
-  interface Window {
-    electron: ElectronBridge;
-  }
-} 
+// Re-export types from electron.ts
+export type { ElectronBridge } from './electron'; 

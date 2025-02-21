@@ -15,6 +15,8 @@ interface LoadingIndicatorProps {
      * Optional className for custom styling
      */
     className?: string;
+    showDots?: boolean;
+    showBounce?: boolean;
 }
 
 const sizeClasses = {
@@ -25,8 +27,10 @@ const sizeClasses = {
 
 const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({
     size = 'medium',
-    message,
-    className
+    message = 'Loading...',
+    className = '',
+    showDots = false,
+    showBounce = false
 }) => {
     const dotSize = sizeClasses[size];
     
@@ -36,27 +40,31 @@ const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({
             className
         )}>
             <div className="flex justify-center items-center space-x-1">
-                <div
-                    className={cn(
-                        dotSize,
-                        "bg-primary rounded-full",
-                        "animate-bounce-delay-0"
-                    )}
-                />
-                <div
-                    className={cn(
-                        dotSize,
-                        "bg-primary rounded-full",
-                        "animate-bounce-delay-200"
-                    )}
-                />
-                <div
-                    className={cn(
-                        dotSize,
-                        "bg-primary rounded-full",
-                        "animate-bounce-delay-400"
-                    )}
-                />
+                {showDots && (
+                    <>
+                        <div
+                            className={cn(
+                                dotSize,
+                                "bg-primary rounded-full",
+                                "animate-bounce-delay-0"
+                            )}
+                        />
+                        <div
+                            className={cn(
+                                dotSize,
+                                "bg-primary rounded-full",
+                                "animate-bounce-delay-200"
+                            )}
+                        />
+                        <div
+                            className={cn(
+                                dotSize,
+                                "bg-primary rounded-full",
+                                "animate-bounce-delay-400"
+                            )}
+                        />
+                    </>
+                )}
             </div>
             {message && (
                 <span className="mt-2 text-sm text-muted-foreground">

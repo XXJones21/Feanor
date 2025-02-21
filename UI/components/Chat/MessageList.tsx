@@ -70,7 +70,7 @@ const MessageList: React.FC<MessageListProps> = ({
                 ref={isLast ? lastMessageRef : undefined}
             >
                 <Message {...message} />
-                {hasError && message.retryable && onRetry && (
+                {hasError && message.error?.retryable && onRetry && (
                     <div className="flex flex-col items-end gap-2 mt-2">
                         <div className="text-sm text-error bg-error/10 px-4 py-2 rounded-lg">
                             Failed to send message

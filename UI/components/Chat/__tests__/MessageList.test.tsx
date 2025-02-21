@@ -1,83 +1,124 @@
-import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen } from '@testing-library/react';
 import MessageList from '../MessageList';
-import type { Message } from '@/types/chat';
+import { Message } from '../../../types/chat';
 
 // Mock child components
-jest.mock('../Message', () => {
+vi.mock('../Message', () => {
     return ({ content }: { content: string }) => <div data-testid="message">{content}</div>;
 });
 
-jest.mock('../LoadingIndicator', () => {
+vi.mock('../LoadingIndicator', () => {
     return () => <div data-testid="loading-indicator">Loading...</div>;
 });
 
 // Mock utilities
-jest.mock('@/lib/utils', () => ({
+vi.mock('@/lib/utils', () => ({
     cn: (...inputs: string[]) => inputs.join(' '),
 }));
 
 // Mock framer-motion to avoid animation complexity in tests
-jest.mock('framer-motion', () => ({
+vi.mock('framer-motion', () => ({
     motion: {
         div: ({ children, ...props }: any) => <div {...props}>{children}</div>,
     },
     AnimatePresence: ({ children }: any) => <>{children}</>,
 }));
 
-describe('MessageList', () => {
-    const mockMessages: Message[] = [
-        { role: 'user', content: 'Hello', id: '1' },
-        { role: 'assistant', content: 'Hi there!', id: '2' },
-    ];
+const mockMessages: Message[] = [
+    {
+        role: 'user',
+        content: 'Hello',
+        id: '1',
+        timestamp: Date.now(),
+        status: 'complete'
+    },
+    {
+        role: 'assistant',
+        content: 'Hi there!',
+        id: '2',
+        timestamp: Date.now(),
+        status: 'complete'
+    }
+];
 
+describe('MessageList', () => {
     it('renders messages correctly', () => {
-        render(<MessageList messages={mockMessages} />);
-        const messages = screen.getAllByTestId('message');
-        expect(messages).toHaveLength(2);
-        expect(messages[0]).toHaveTextContent('Hello');
-        expect(messages[1]).toHaveTextContent('Hi there!');
+        const { container } = render(<MessageList messages={mockMessages} isLoading={false} onRetry={() => {}} />);
+        const messages = container.querySelectorAll('.message');
+        expect(messages.length).toBe(2);
+        expect(messages[0].textContent).toContain('Hello');
+        expect(messages[1].textContent).toContain('Hi there!');
     });
 
     it('shows loading indicator when isLoading is true', () => {
-        render(<MessageList messages={mockMessages} isLoading />);
-        expect(screen.getByTestId('loading-indicator')).toBeInTheDocument();
+        render(<MessageList messages={mockMessages} isLoading={true} onRetry={() => {}} />);
+        const loadingIndicator = screen.getByTestId('loading-indicator');
+        expect(loadingIndicator).toBeDefined();
     });
 
-    it('handles retry for failed messages', () => {
-        const onRetry = jest.fn();
+    it('handles error messages', () => {
         const messagesWithError: Message[] = [
             ...mockMessages,
-            { role: 'user', content: 'Failed message', id: '3', status: 'error' },
+            {
+                role: 'user' as const,
+                content: 'Failed message',
+                id: '3',
+                timestamp: Date.now(),
+                status: 'error' as const,
+                error: {
+                    message: 'An error occurred',
+                    retryable: true
+                }
+            }
         ];
 
-        render(<MessageList messages={messagesWithError} onRetry={onRetry} />);
+        render(<MessageList messages={messagesWithError} isLoading={false} onRetry={() => {}} />);
+        const errorMessage = screen.getByText('An error occurred');
+        expect(errorMessage).toBeDefined();
+    });
+
+    it('handles retry callback', () => {
+        const onRetry = vi.fn();
+        const messagesWithError: Message[] = [
+            ...mockMessages,
+            {
+                role: 'user' as const,
+                content: 'Failed message',
+                id: '3',
+                timestamp: Date.now(),
+                status: 'error' as const,
+                error: {
+                    message: 'An error occurred',
+                    retryable: true
+                }
+            }
+        ];
+
+        render(<MessageList messages={messagesWithError} isLoading={false} onRetry={onRetry} />);
         const retryButton = screen.getByText('Retry');
-        
-        fireEvent.click(retryButton);
-        expect(onRetry).toHaveBeenCalledWith(2); // Index of the failed message
+        retryButton.click();
+        expect(onRetry).toHaveBeenCalledWith(2); // Index of the error message
     });
 
-    it('renders error message for failed messages', () => {
-        const messagesWithError: Message[] = [
-            ...mockMessages,
-            { role: 'user', content: 'Failed message', id: '3', status: 'error' },
-        ];
-
-        render(<MessageList messages={messagesWithError} onRetry={() => Promise.resolve()} />);
-        expect(screen.getByText('Failed to send message')).toBeInTheDocument();
-    });
-
-    it('applies custom className when provided', () => {
-        const customClass = 'custom-test-class';
+    it('applies custom className', () => {
+        const customClass = 'test-class';
         const { container } = render(
-            <MessageList messages={mockMessages} className={customClass} />
+            <MessageList 
+                messages={mockMessages} 
+                isLoading={false} 
+                onRetry={() => {}} 
+                className={customClass}
+            />
         );
-        expect(container.firstChild).toHaveClass(customClass);
+        const element = container.firstChild as HTMLElement;
+        expect(element).toBeDefined();
+        expect(element.className).toContain(customClass);
     });
 
-    it('handles empty message list', () => {
-        render(<MessageList messages={[]} />);
-        expect(screen.queryByTestId('message')).not.toBeInTheDocument();
+    it('renders empty state', () => {
+        render(<MessageList messages={[]} isLoading={false} onRetry={() => {}} />);
+        const messageContainer = screen.queryByTestId('message');
+        expect(messageContainer).toBeNull();
     });
 }); 

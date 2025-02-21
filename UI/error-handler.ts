@@ -7,13 +7,42 @@ export interface ErrorHandlerResult {
 
 export class ErrorHandler {
     private static readonly PROXY_URL = 'http://127.0.0.1:4892';
+    private static readonly LM_STUDIO_URL = 'http://127.0.0.1:4891';
 
     static async checkLMStudioConnection(): Promise<boolean> {
         try {
-            const response = await fetch(this.PROXY_URL);
-            return response.ok;
+            // First check LM Studio
+            console.log('Checking LM Studio connection...');
+            const lmStudioResponse = await fetch(`${this.LM_STUDIO_URL}/v1/models`, {
+                method: 'GET',
+                headers: { 'Content-Type': 'application/json' }
+            });
+
+            if (!lmStudioResponse.ok) {
+                console.error('LM Studio connection failed:', lmStudioResponse.statusText);
+                return false;
+            }
+
+            // Then check proxy
+            console.log('Checking proxy connection...');
+            const proxyResponse = await fetch(`${this.PROXY_URL}/health`);
+            if (!proxyResponse.ok) {
+                console.error('Proxy connection failed:', proxyResponse.statusText);
+                return false;
+            }
+
+            const health = await proxyResponse.json();
+            if (!health.lmstudio_connected) {
+                console.error('Proxy reports LM Studio is not connected');
+                return false;
+            }
+
+            return true;
         } catch (error) {
-            console.error('LM Studio connection error:', error);
+            console.error('Connection error:', {
+                message: error instanceof Error ? error.message : 'Unknown error',
+                stack: error instanceof Error ? error.stack : undefined
+            });
             return false;
         }
     }
@@ -23,7 +52,12 @@ export class ErrorHandler {
             type: 'error',
             title: 'Connection Error',
             message: 'Could not connect to LM Studio',
-            detail: 'Please make sure LM Studio is running and try again.',
+            detail: 'Please ensure:\n\n' +
+                '1. LM Studio is running\n' +
+                '2. A model is loaded in LM Studio\n' +
+                '3. The local server is enabled in LM Studio settings\n' +
+                '4. The server is running on port 4891\n\n' +
+                'Would you like to retry the connection?',
             buttons: ['Retry', 'Exit'],
             defaultId: 0
         });

@@ -1,10 +1,11 @@
-import React from 'react';
-import ReactMarkdown from 'react-markdown';
+import React, { lazy, Suspense } from 'react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { cn } from '@/lib/utils';
 import { type MessageRole } from '@/types/chat';
 import { processMarkdown, formatCodeBlock, processInlineCode } from '@/lib/chat/markdown';
+
+const ReactMarkdown = lazy(() => import('react-markdown'));
 
 /**
  * Message component displays a chat message with support for markdown content,
@@ -153,10 +154,12 @@ const Message: React.FC<MessageProps> = ({
                     : 'bg-muted text-muted-foreground',
                 isStreaming && 'opacity-80'
             )}>
-                <div 
-                    className="prose dark:prose-invert max-w-none"
-                    dangerouslySetInnerHTML={{ __html: renderedContent }}
-                />
+                <Suspense fallback={<div>Loading...</div>}>
+                    <div 
+                        className="prose dark:prose-invert max-w-none"
+                        dangerouslySetInnerHTML={{ __html: renderedContent }}
+                    />
+                </Suspense>
             </div>
         </div>
     );

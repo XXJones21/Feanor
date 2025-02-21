@@ -17,7 +17,7 @@ const ToolsHeader = styled.div`
     cursor: pointer;
 `;
 
-const ToolsList = styled(motion.div)`
+const ToolsListContainer = styled(motion.div)`
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
@@ -56,7 +56,7 @@ const ToolsList = ({ tools, onToolSelect }) => {
             </ToolsHeader>
             <AnimatePresence>
                 {isExpanded && (
-                    <ToolsList
+                    <ToolsListContainer
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: 'auto' }}
                         exit={{ opacity: 0, height: 0 }}
@@ -72,7 +72,7 @@ const ToolsList = ({ tools, onToolSelect }) => {
                                 <div className="tool-description">{tool.description}</div>
                             </ToolItem>
                         ))}
-                    </ToolsList>
+                    </ToolsListContainer>
                 )}
             </AnimatePresence>
         </ToolsContainer>

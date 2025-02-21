@@ -1,28 +1,20 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Message, ChatError, ElectronBridge } from '../types/chat';
+import { Message, ChatError } from '../types/chat';
+import { ElectronBridge, IpcChannels } from '../types/electron';
 
 export type MessageStatus = 'complete' | 'streaming' | 'error' | 'pending';
 
-export interface ChatMessage extends Omit<Message, 'timestamp'> {
-    id: string;
-    timestamp: string;
-    status?: MessageStatus;
+export interface ChatMessage extends Message {
     chatId?: string;
 }
 
-declare global {
-    interface Window {
-        electron: ElectronBridge;
-    }
-}
-
-const { ipcRenderer } = window.electron;
+const electron = window.electron;
 
 const SYSTEM_MESSAGE: ChatMessage = {
     role: 'system',
     content: 'You are a helpful AI assistant. Provide direct, concise answers without showing your thinking process. Focus on accuracy and clarity.',
     id: 'system-message',
-    timestamp: new Date().toISOString(),
+    timestamp: Date.now(),
     status: 'complete'
 };
 
@@ -48,7 +40,7 @@ export const useChatHistory = (): UseChatHistoryReturn => {
         const initialMessages = [SYSTEM_MESSAGE];
         setMessages(initialMessages);
         try {
-            await ipcRenderer.invoke('save-chat', {
+            await electron.invoke(IpcChannels.SAVE_CHAT, {
                 chatId,
                 messages: initialMessages
             });
@@ -70,10 +62,10 @@ export const useChatHistory = (): UseChatHistoryReturn => {
 
         setIsLoading(true);
         try {
-            const loadedMessages = await ipcRenderer.invoke('load-chat', chatId) as (Message & { id: string })[];
+            const loadedMessages = await electron.invoke(IpcChannels.LOAD_CHAT, chatId) as Message[];
             setMessages(loadedMessages.map(msg => ({
                 ...msg,
-                timestamp: msg.timestamp || new Date().toISOString()
+                timestamp: msg.timestamp || Date.now()
             })));
         } catch (error) {
             console.error('Error loading chat:', error);
@@ -95,7 +87,7 @@ export const useChatHistory = (): UseChatHistoryReturn => {
         const newMessage: ChatMessage = {
             ...message,
             id: message.id || crypto.randomUUID(),
-            timestamp: message.timestamp || new Date().toISOString(),
+            timestamp: message.timestamp || Date.now(),
             status: 'complete'
         };
 
@@ -103,7 +95,7 @@ export const useChatHistory = (): UseChatHistoryReturn => {
             const updatedMessages = [...prevMessages, newMessage];
             
             // Save to disk asynchronously
-            ipcRenderer.invoke('save-chat', {
+            electron.invoke(IpcChannels.SAVE_CHAT, {
                 chatId,
                 messages: updatedMessages
             }).catch((error: Error) => {
@@ -135,11 +127,11 @@ export const useChatHistory = (): UseChatHistoryReturn => {
             updatedMessages[messageIndex] = {
                 ...updatedMessages[messageIndex],
                 ...updates,
-                timestamp: new Date().toISOString()
+                timestamp: Date.now()
             };
 
             // Save to disk asynchronously
-            ipcRenderer.invoke('save-chat', {
+            electron.invoke(IpcChannels.SAVE_CHAT, {
                 chatId,
                 messages: updatedMessages
             }).catch((error: Error) => {
@@ -163,7 +155,7 @@ export const useChatHistory = (): UseChatHistoryReturn => {
             const updatedMessages = prevMessages.filter(msg => msg.id !== messageId);
             
             // Save to disk asynchronously
-            ipcRenderer.invoke('save-chat', {
+            electron.invoke(IpcChannels.SAVE_CHAT, {
                 chatId,
                 messages: updatedMessages
             }).catch((error: Error) => {
@@ -195,7 +187,7 @@ export const useChatHistory = (): UseChatHistoryReturn => {
 
         setMessages([]);
         try {
-            await ipcRenderer.invoke('save-chat', {
+            await electron.invoke(IpcChannels.SAVE_CHAT, {
                 chatId,
                 messages: []
             });
@@ -215,7 +207,7 @@ export const useChatHistory = (): UseChatHistoryReturn => {
             if (messages.length > 0) {
                 const chatId = messages[0]?.chatId;
                 if (chatId) {
-                    ipcRenderer.invoke('save-chat', {
+                    electron.invoke(IpcChannels.SAVE_CHAT, {
                         chatId,
                         messages
                     }).catch(error => {

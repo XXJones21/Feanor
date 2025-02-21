@@ -1,9 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { userEvent, type UserEvent } from '@testing-library/user-event';
-import '@testing-library/jest-dom/vitest';
-import InputArea from './InputArea';
+import { render, screen, fireEvent } from '@testing-library/react';
+import { userEvent } from '@testing-library/user-event';
+import InputArea from '../InputArea';
 
 // Mock framer-motion to avoid animation issues in tests
 vi.mock('framer-motion', () => ({
@@ -24,69 +23,68 @@ vi.mock('@/lib/utils', () => ({
 }));
 
 describe('InputArea', () => {
-    let user: UserEvent;
     const mockOnSendMessage = vi.fn();
     const defaultProps = {
         onSendMessage: mockOnSendMessage,
     };
 
     beforeEach(() => {
-        user = userEvent.setup();
         vi.clearAllMocks();
     });
 
     it('renders correctly', () => {
         render(<InputArea {...defaultProps} />);
-        expect(screen.getByPlaceholderText('Type a message...')).toBeInTheDocument();
-        expect(screen.getByText('Send')).toBeInTheDocument();
+        expect(screen.getByPlaceholderText('Type a message...')).toBeDefined();
+        expect(screen.getByText('Send')).toBeDefined();
     });
 
     it('handles text input correctly', async () => {
         render(<InputArea {...defaultProps} />);
-        const textarea = screen.getByPlaceholderText('Type a message...');
+        const textarea = screen.getByPlaceholderText('Type a message...') as HTMLTextAreaElement;
         
-        await user.type(textarea, 'Hello, world!');
-        expect(textarea).toHaveValue('Hello, world!');
+        await userEvent.type(textarea, 'Hello, world!');
+        expect(textarea.value).toBe('Hello, world!');
     });
 
     it('sends message on button click', async () => {
         render(<InputArea {...defaultProps} />);
-        const textarea = screen.getByPlaceholderText('Type a message...');
+        const textarea = screen.getByPlaceholderText('Type a message...') as HTMLTextAreaElement;
         const sendButton = screen.getByText('Send');
 
-        await user.type(textarea, 'Test message');
-        await user.click(sendButton);
+        await userEvent.type(textarea, 'Test message');
+        await userEvent.click(sendButton);
 
         expect(mockOnSendMessage).toHaveBeenCalledWith('Test message', null);
-        expect(textarea).toHaveValue('');
+        expect(textarea.value).toBe('');
     });
 
     it('sends message on Enter key', async () => {
         render(<InputArea {...defaultProps} />);
-        const textarea = screen.getByPlaceholderText('Type a message...');
+        const textarea = screen.getByPlaceholderText('Type a message...') as HTMLTextAreaElement;
 
-        await user.type(textarea, 'Test message{enter}');
+        await userEvent.type(textarea, 'Test message');
+        await userEvent.keyboard('{Enter}');
 
         expect(mockOnSendMessage).toHaveBeenCalledWith('Test message', null);
-        expect(textarea).toHaveValue('');
+        expect(textarea.value).toBe('');
     });
 
     it('does not send empty messages', async () => {
         render(<InputArea {...defaultProps} />);
         const sendButton = screen.getByText('Send');
 
-        await user.click(sendButton);
+        await userEvent.click(sendButton);
         expect(mockOnSendMessage).not.toHaveBeenCalled();
     });
 
     it('handles loading state correctly', () => {
         render(<InputArea {...defaultProps} isLoading />);
         
-        const textarea = screen.getByPlaceholderText('Type a message...');
-        const sendButton = screen.getByText('Sending...');
+        const textarea = screen.getByPlaceholderText('Type a message...') as HTMLTextAreaElement;
+        const sendButton = screen.getByText('Sending...') as HTMLButtonElement;
 
-        expect(textarea).toBeDisabled();
-        expect(sendButton).toBeDisabled();
+        expect(textarea.disabled).toBe(true);
+        expect(sendButton.disabled).toBe(true);
     });
 
     it('handles file paste', async () => {
@@ -102,9 +100,8 @@ describe('InputArea', () => {
 
         fireEvent.paste(textarea, { clipboardData });
 
-        await waitFor(() => {
-            expect(screen.getByText('📎 test.png')).toBeInTheDocument();
-        });
+        const attachmentText = await screen.findByText('📎 test.png');
+        expect(attachmentText).toBeDefined();
     });
 
     it('handles file drop', async () => {
@@ -119,9 +116,8 @@ describe('InputArea', () => {
             }
         });
 
-        await waitFor(() => {
-            expect(screen.getByText('📎 test.png')).toBeInTheDocument();
-        });
+        const attachmentText = await screen.findByText('📎 test.png');
+        expect(attachmentText).toBeDefined();
     });
 
     it('allows removing attachments', async () => {
@@ -136,11 +132,13 @@ describe('InputArea', () => {
             }
         });
 
-        await waitFor(() => {
-            const removeButton = screen.getByLabelText('Remove attachment');
-            fireEvent.click(removeButton);
-            expect(screen.queryByText('📎 test.png')).not.toBeInTheDocument();
-        });
+        const attachmentText = await screen.findByText('📎 test.png');
+        expect(attachmentText).toBeDefined();
+
+        const removeButton = screen.getByLabelText('Remove attachment');
+        await userEvent.click(removeButton);
+        
+        expect(screen.queryByText('📎 test.png')).toBeNull();
     });
 
     it('handles error during message send', async () => {
@@ -151,8 +149,8 @@ describe('InputArea', () => {
         render(<InputArea onSendMessage={mockOnSendMessageWithError} />);
         const textarea = screen.getByPlaceholderText('Type a message...');
         
-        await user.type(textarea, 'Test message');
-        await user.click(screen.getByText('Send'));
+        await userEvent.type(textarea, 'Test message');
+        await userEvent.click(screen.getByText('Send'));
 
         expect(consoleSpy).toHaveBeenCalledWith('Failed to send message:', mockError);
         consoleSpy.mockRestore();

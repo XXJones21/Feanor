@@ -1,38 +1,44 @@
 {
   "compilerOptions": {
+    "target": "ES2022",
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
-    "target": "ES6",
     "skipLibCheck": true,
     "strict": true,
-    "noEmit": true,
+    "forceConsistentCasingInFileNames": true,
     "esModuleInterop": true,
-    "module": "esnext",
-    "moduleResolution": "bundler",
+    "module": "node16",
+    "moduleResolution": "node16",
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "jsx": "preserve",
+    "jsx": "react-jsx",
     "incremental": true,
-    "plugins": [
-      {
-        "name": "next"
-      }
-    ],
+    "outDir": "../dist",
+    "rootDir": ".",
+    "baseUrl": ".",
     "paths": {
       "@/*": ["./*"]
     },
-    "baseUrl": ".",
-    "typeRoots": ["./node_modules/@types", "./types"]
+    "typeRoots": [
+      "../node_modules/@types",
+      "./types"
+    ],
+    "types": ["node", "electron", "node-fetch"],
+    "allowSyntheticDefaultImports": true
   },
   "include": [
-    "next-env.d.ts",
     "**/*.ts",
     "**/*.tsx",
-    ".next/types/**/*.ts",
     "types/**/*.d.ts",
-    "hooks/**/*.d.ts",
-    "components/**/*.d.ts",
-    "../node_modules/@types/node/index.d.ts"
+    "hooks/**/*.ts",
+    "components/**/*.tsx",
+    "lib/**/*.ts",
+    "main.ts",
+    "preload.ts",
+    "renderer.ts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules",
+    "../dist"
+  ]
 } 

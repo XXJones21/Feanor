@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>LM Studio Chat</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' data:; connect-src http://localhost:* http://127.0.0.1:*">
+    <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+    <div class="app-layout">
+        <div class="sidebar-layout">
+            <div class="title-bar">
+                <div class="window-controls">
+                    <button id="minimizeBtn" class="window-control window-control-minimize"></button>
+                    <button id="maximizeBtn" class="window-control window-control-maximize"></button>
+                    <button id="closeBtn" class="window-control window-control-close"></button>
+                </div>
+            </div>
+            <button id="newChatBtn" class="chat-button-new">+ New Chat</button>
+            <div id="chatList" class="chat-list"></div>
+            <div class="chat-section">
+                <button id="deleteChatBtn" class="chat-button-delete" style="display: none;">🗑️ Delete Chat</button>
+            </div>
+            <div id="toolsList" class="chat-section"></div>
+            <div class="status-bar">
+                <div class="status-indicator status-disconnected"></div>
+                <span class="status-text">Disconnected</span>
+                <span class="status-details"></span>
+            </div>
+        </div>
+        <div class="chat-container">
+            <div id="messageList" class="message-list"></div>
+            <div id="loadingIndicator" class="loading" style="display: none;">
+                <div class="loading-dots">
+                    <div class="loading-dot loading-dot-1"></div>
+                    <div class="loading-dot loading-dot-2"></div>
+                    <div class="loading-dot loading-dot-3"></div>
+                </div>
+            </div>
+            <div class="input-section">
+                <div id="attachmentPreview" class="attachment-preview"></div>
+                <div class="input-container">
+                    <textarea id="messageInput" class="message-input" placeholder="Type a message..."></textarea>
+                    <button id="sendBtn" class="send-button">Send</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="./renderer.js" type="module" defer></script>
+</body>
+</html> 

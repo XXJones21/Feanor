@@ -1,4 +1,7 @@
 /*! tailwindcss v4.0.0 | MIT License | https://tailwindcss.com */
+@import "tailwindcss/preflight";
+@import "tailwindcss/utilities";
+
 @layer theme, base, components, utilities;
 @layer theme {
   :root {
@@ -9,4 +12,349 @@
       "Liberation Mono", "Courier New", monospace;
     /* ... existing color variables ... */
   }
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  html, body {
+    height: 100%;
+    background-color: #ffffff;
+    color: #111827;
+    font-family: system-ui, -apple-system, sans-serif;
+  }
+}
+
+@layer components {
+  .app-container {
+    @apply grid grid-cols-[250px_1fr] h-screen;
+  }
+
+  .sidebar {
+    @apply flex flex-col h-full border-r bg-card;
+  }
+
+  .title-bar {
+    @apply flex items-center justify-between p-4 border-b;
+  }
+
+  .window-controls {
+    @apply flex items-center gap-2;
+  }
+
+  .control {
+    @apply w-3 h-3 rounded-full outline-none;
+  }
+
+  .minimize {
+    @apply bg-amber-400 hover:bg-amber-500;
+  }
+
+  .maximize {
+    @apply bg-emerald-400 hover:bg-emerald-500;
+  }
+
+  .close {
+    @apply bg-red-500 hover:bg-red-600;
+  }
+
+  .new-chat-btn {
+    @apply w-full px-4 py-2 text-sm font-medium text-primary-foreground bg-primary transition-colors;
+  }
+
+  .chat-list {
+    @apply flex-1 overflow-y-auto p-4;
+  }
+
+  .chat-actions {
+    @apply p-4 border-t;
+  }
+
+  .delete-chat-btn {
+    @apply w-full px-4 py-2 text-sm text-destructive-foreground bg-destructive rounded-md transition-colors;
+  }
+
+  .tools-list {
+    @apply p-4 border-t;
+  }
+
+  .status-indicator {
+    @apply flex items-center gap-2 p-4 border-t text-sm text-muted-foreground;
+  }
+
+  .status-dot {
+    @apply w-2 h-2 rounded-full;
+  }
+
+  .status-dot.connected {
+    @apply bg-emerald-400;
+  }
+
+  .status-dot.disconnected {
+    @apply bg-red-500;
+  }
+
+  .chat-container {
+    @apply flex flex-col h-full;
+  }
+
+  .message-list {
+    @apply flex-1 overflow-y-auto p-4;
+  }
+
+  .loading-container {
+    @apply flex justify-center items-center p-4;
+  }
+
+  .loading-dots {
+    @apply flex gap-1;
+  }
+
+  .dot {
+    @apply w-2 h-2 rounded-full bg-primary animate-bounce;
+  }
+
+  .dot:nth-child(2) {
+    animation-delay: 200ms;
+  }
+
+  .dot:nth-child(3) {
+    animation-delay: 400ms;
+  }
+
+  .input-container {
+    @apply p-4 border-t;
+  }
+
+  .input-area {
+    @apply flex gap-4;
+  }
+
+  .message-input {
+    @apply flex-1 min-h-[24px] max-h-[200px] p-3 rounded-xl border bg-background resize-none focus:outline-none focus:ring-2 focus:ring-primary;
+  }
+
+  .send-btn {
+    @apply px-6 py-3 rounded-xl bg-primary text-primary-foreground font-semibold text-sm transition-colors disabled:bg-muted disabled:cursor-not-allowed;
+  }
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-0.25rem); }
+}
+
+@layer utilities {
+  .app-layout {
+    display: grid;
+    grid-template-columns: 250px 1fr;
+    height: 100vh;
+  }
+
+  .sidebar-layout {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    border-right: 1px solid #e5e7eb;
+    background-color: #ffffff;
+  }
+
+  .title-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem;
+    border-bottom: 1px solid #e5e7eb;
+  }
+
+  .window-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .window-control {
+    width: 0.75rem;
+    height: 0.75rem;
+    border-radius: 9999px;
+    outline: none;
+    transition: background-color 0.2s;
+  }
+
+  .window-control-minimize {
+    background-color: #fbbf24;
+  }
+  .window-control-minimize:hover {
+    background-color: #f59e0b;
+  }
+
+  .window-control-maximize {
+    background-color: #34d399;
+  }
+  .window-control-maximize:hover {
+    background-color: #10b981;
+  }
+
+  .window-control-close {
+    background-color: #ef4444;
+  }
+  .window-control-close:hover {
+    background-color: #dc2626;
+  }
+
+  .chat-button {
+    width: 100%;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: background-color 0.2s;
+  }
+
+  .chat-button-new {
+    composes: chat-button;
+    background-color: #111827;
+    color: #ffffff;
+  }
+
+  .chat-button-delete {
+    composes: chat-button;
+    background-color: #ef4444;
+    color: #ffffff;
+    border-radius: 0.375rem;
+  }
+
+  .chat-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1rem;
+  }
+
+  .chat-section {
+    padding: 1rem;
+    border-top: 1px solid #e5e7eb;
+  }
+
+  .status-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1rem;
+    border-top: 1px solid #e5e7eb;
+    font-size: 0.875rem;
+    color: #6b7280;
+  }
+
+  .status-indicator {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 9999px;
+  }
+
+  .status-connected {
+    background-color: #34d399;
+  }
+
+  .status-disconnected {
+    background-color: #ef4444;
+  }
+
+  .chat-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+
+  .message-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1rem;
+  }
+
+  .loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 1rem;
+  }
+
+  .loading-dots {
+    display: flex;
+    gap: 0.25rem;
+  }
+
+  .loading-dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 9999px;
+    background-color: #111827;
+  }
+
+  .loading-dot-1 {
+    animation: bounce 1s infinite;
+  }
+
+  .loading-dot-2 {
+    animation: bounce 1s infinite 200ms;
+  }
+
+  .loading-dot-3 {
+    animation: bounce 1s infinite 400ms;
+  }
+
+  .input-section {
+    padding: 1rem;
+    border-top: 1px solid #e5e7eb;
+  }
+
+  .input-container {
+    display: flex;
+    gap: 1rem;
+  }
+
+  .message-input {
+    flex: 1;
+    min-height: 24px;
+    max-height: 200px;
+    padding: 0.75rem;
+    border-radius: 0.75rem;
+    border: 1px solid #e5e7eb;
+    background-color: #ffffff;
+    resize: none;
+  }
+
+  .message-input:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px #111827;
+  }
+
+  .send-button {
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.75rem;
+    background-color: #111827;
+    color: #ffffff;
+    font-weight: 600;
+    font-size: 0.875rem;
+    transition: background-color 0.2s;
+  }
+
+  .send-button:disabled {
+    background-color: #e5e7eb;
+    cursor: not-allowed;
+  }
+}
+
+.bg-card {
+  background-color: #ffffff;
+}
+
+.text-card-foreground {
+  color: #111827;
 } 

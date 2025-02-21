@@ -1,7 +1,8 @@
 import { app, BrowserWindow, ipcMain, dialog, IpcMainInvokeEvent, protocol } from 'electron';
 import * as path from 'path';
-import * as fs from 'fs';
-import fetch from 'node-fetch';
+import * as fs from 'fs/promises';
+import fetch, { Headers, RequestInit, Response } from 'node-fetch';
+import { spawn } from 'child_process';
 import { ErrorHandler } from './error-handler';
 import {
     Message,
@@ -13,8 +14,10 @@ import {
     ToolsConfig,
     ModelCache
 } from './types/electron';
+import type { ReadableStream as NodeReadableStream } from 'node:stream/web';
 
 let mainWindow: BrowserWindow | null = null;
+let proxyProcess: any = null;
 
 // Constants
 const PROXY_PORT = 4892;
@@ -28,6 +31,50 @@ let modelCache: ModelCache = {
     availableModels: null,
     lastCheck: 0
 };
+
+// Start proxy server
+async function startProxyServer(): Promise<void> {
+    return new Promise((resolve, reject) => {
+        try {
+            console.log('Starting proxy server...');
+            const pythonPath = process.platform === 'win32' ? 'python' : 'python3';
+            proxyProcess = spawn(pythonPath, ['Backend/lmstudio_proxy.py'], {
+                stdio: 'pipe'
+            });
+
+            proxyProcess.stdout.on('data', (data: Buffer) => {
+                console.log('Proxy server output:', data.toString());
+            });
+
+            proxyProcess.stderr.on('data', (data: Buffer) => {
+                console.error('Proxy server error:', data.toString());
+            });
+
+            proxyProcess.on('error', (error: Error) => {
+                console.error('Failed to start proxy server:', error);
+                reject(error);
+            });
+
+            // Wait for the server to start
+            setTimeout(() => {
+                console.log('Proxy server started');
+                resolve();
+            }, 2000);
+        } catch (error) {
+            console.error('Error starting proxy server:', error);
+            reject(error);
+        }
+    });
+}
+
+// Stop proxy server
+function stopProxyServer() {
+    if (proxyProcess) {
+        console.log('Stopping proxy server...');
+        proxyProcess.kill();
+        proxyProcess = null;
+    }
+}
 
 // Add function to get the active model from LM Studio
 async function getActiveModel(forceRefresh = false): Promise<string> {
@@ -146,12 +193,16 @@ async function checkConnections(): Promise<boolean> {
     }
 }
 
-// Process message
-async function processMessage(message: string): Promise<Message> {
+// Process message - updated to match Message interface
+async function processMessage(content: string): Promise<ChatMessage> {
     try {
         return {
-            type: 'message',
-            content: message
+            id: crypto.randomUUID(),
+            role: 'assistant',
+            content,
+            timestamp: Date.now(),
+            status: 'complete',
+            isStreaming: false
         };
     } catch (error) {
         console.error('Error processing message:', error);
@@ -160,62 +211,76 @@ async function processMessage(message: string): Promise<Message> {
 }
 
 // Add message handling IPC
-ipcMain.handle('process-message', async (_event: IpcMainInvokeEvent, message: string) => {
-    return processMessage(message);
+ipcMain.handle('process-message', async (_event: IpcMainInvokeEvent, content: string) => {
+    return processMessage(content);
 });
 
 async function createWindow(): Promise<void> {
-    mainWindow = new BrowserWindow({
-        width: 1200,
-        height: 800,
-        webPreferences: {
-            nodeIntegration: true,
-            contextIsolation: false
-        },
-        titleBarStyle: 'hidden',
-        frame: false
-    });
+    try {
+        // Start proxy server first
+        await startProxyServer();
 
-    // Check LM Studio connection before loading
-    const isConnected = await ErrorHandler.checkLMStudioConnection();
-    if (!isConnected) {
-        const shouldRetry = await ErrorHandler.showConnectionError(mainWindow);
-        if (shouldRetry) {
-            return createWindow();
+        mainWindow = new BrowserWindow({
+            width: 1200,
+            height: 800,
+            webPreferences: {
+                nodeIntegration: false,
+                contextIsolation: true,
+                sandbox: true,
+                preload: path.join(process.cwd(), 'dist/preload.js')
+            },
+            titleBarStyle: 'hidden',
+            frame: false
+        });
+
+        // Check LM Studio connection before loading
+        const isConnected = await ErrorHandler.checkLMStudioConnection();
+        if (!isConnected) {
+            const shouldRetry = await ErrorHandler.showConnectionError(mainWindow);
+            if (shouldRetry) {
+                return createWindow();
+            }
+            app.quit();
+            return;
         }
+
+        mainWindow.loadFile(path.join(process.cwd(), 'dist/index.html'));
+
+        // Window control handlers
+        ipcMain.on('minimize-window', () => mainWindow?.minimize());
+        ipcMain.on('maximize-window', () => {
+            if (!mainWindow) return;
+            if (mainWindow.isMaximized()) {
+                mainWindow.unmaximize();
+            } else {
+                mainWindow.maximize();
+            }
+        });
+        ipcMain.on('close-window', () => app.quit());
+    } catch (error) {
+        console.error('Error creating window:', error);
         app.quit();
-        return;
     }
-
-    mainWindow.loadFile(path.join(__dirname, 'index.html'));
-
-    // Window control handlers
-    ipcMain.on('minimize-window', () => mainWindow?.minimize());
-    ipcMain.on('maximize-window', () => {
-        if (!mainWindow) return;
-        if (mainWindow.isMaximized()) {
-            mainWindow.unmaximize();
-        } else {
-            mainWindow.maximize();
-        }
-    });
-    ipcMain.on('close-window', () => app.quit());
 }
 
 // Load tools configuration
-const TOOLS_CONFIG_PATH = path.join(__dirname, '../Tools/tools_config.json');
+const TOOLS_CONFIG_PATH = path.join(process.cwd(), 'Tools/tools_config.json');
 let toolsConfig: ToolsConfig = { tools: [] };
-
-try {
-    toolsConfig = JSON.parse(fs.readFileSync(TOOLS_CONFIG_PATH, 'utf8'));
-} catch (error) {
-    console.error('Error loading tools config:', error);
-}
 
 // Chat history management
 const CHATS_DIR = path.join(app.getPath('userData'), 'chats');
-if (!fs.existsSync(CHATS_DIR)) {
-    fs.mkdirSync(CHATS_DIR, { recursive: true });
+
+// Initialize tools and chat directory
+async function initialize() {
+    try {
+        toolsConfig = JSON.parse(await fs.readFile(TOOLS_CONFIG_PATH, 'utf8'));
+    } catch (error) {
+        console.error('Error loading tools config:', error);
+    }
+
+    if (!await fs.access(CHATS_DIR).then(() => true).catch(() => false)) {
+        await fs.mkdir(CHATS_DIR, { recursive: true });
+    }
 }
 
 // IPC Handlers
@@ -256,8 +321,41 @@ async function retryChatCompletion(messages: ChatMessage[], functions?: any[]): 
     return await response.json();
 }
 
+// Helper function to convert Node.js ReadableStream to Web ReadableStream
+function convertNodeStreamToWebStream(nodeStream: NodeJS.ReadableStream): ReadableStream {
+    return new ReadableStream({
+        start(controller) {
+            nodeStream.on('data', (chunk: Buffer | string) => {
+                try {
+                    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+                    controller.enqueue(buffer);
+                } catch (error) {
+                    controller.error(error);
+                }
+            });
+
+            nodeStream.on('end', () => {
+                controller.close();
+            });
+
+            nodeStream.on('error', (error: Error) => {
+                controller.error(error);
+            });
+        },
+        cancel() {
+            if ('destroy' in nodeStream) {
+                (nodeStream as any).destroy();
+            }
+        }
+    });
+}
+
 // Helper function to handle streaming chat completion retries
-async function retryStreamingChatCompletion(messages: ChatMessage[], functions?: any[], signal?: AbortSignal): Promise<StreamResponse> {
+async function retryStreamingChatCompletion(
+    messages: ChatMessage[],
+    functions?: any[],
+    signal?: AbortSignal
+): Promise<StreamResponse> {
     // Get the active model
     const activeModel = await getActiveModel();
 
@@ -273,29 +371,33 @@ async function retryStreamingChatCompletion(messages: ChatMessage[], functions?:
     
     const controller = new AbortController();
     if (signal) {
-        signal.addEventListener('abort', () => {
-            controller.abort();
-        });
+        signal.addEventListener('abort', () => controller.abort());
     }
 
-    const response = await fetch(`${PROXY_URL}/v1/chat/completions`, {
+    const fetchOptions: RequestInit = {
         method: 'POST',
-        headers: { 
+        headers: new Headers({ 
             'Content-Type': 'application/json',
             'Accept': 'text/event-stream',
             'Cache-Control': 'no-cache',
             'Connection': 'keep-alive'
-        },
+        }),
         body: JSON.stringify({
             model: activeModel,
-            messages: uniqueMessages,
+            messages: uniqueMessages.map((msg: ChatMessage) => ({
+                role: msg.role,
+                content: msg.content
+            })),
             temperature: 0.2,
             stream: true,
             functions,
             function_call: 'auto'
         }),
+        // Cast the signal to any to bypass type checking
         signal: controller.signal as any
-    });
+    };
+
+    const response = await fetch(`${PROXY_URL}/v1/chat/completions`, fetchOptions);
     
     if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -305,10 +407,14 @@ async function retryStreamingChatCompletion(messages: ChatMessage[], functions?:
         throw new Error('Response body is null');
     }
 
+    // Convert Node.js ReadableStream to Web ReadableStream
+    const webStream = convertNodeStreamToWebStream(response.body);
+
     return {
-        body: response.body,
-        headers: response.headers as any,
-        status: response.status
+        body: webStream,
+        headers: response.headers,
+        status: response.status,
+        statusText: response.statusText
     };
 }
 
@@ -401,15 +507,28 @@ ipcMain.handle('analyze-file', async (_event: IpcMainInvokeEvent, filePath: stri
 });
 
 // Chat history operations
+ipcMain.handle('show-open-dialog', async () => {
+    if (!mainWindow) return null;
+    
+    const result = await dialog.showOpenDialog(mainWindow, {
+        properties: ['openFile'],
+        filters: [
+            { name: 'All Files', extensions: ['*'] }
+        ]
+    });
+
+    return result.canceled ? null : result.filePaths[0];
+});
+
 ipcMain.handle('save-chat', async (_event: IpcMainInvokeEvent, { chatId, messages }: SaveChatRequest) => {
     const chatFile = path.join(CHATS_DIR, `${chatId}.json`);
-    await fs.promises.writeFile(chatFile, JSON.stringify(messages, null, 2));
+    await fs.writeFile(chatFile, JSON.stringify(messages, null, 2));
 });
 
 ipcMain.handle('delete-chat', async (_event: IpcMainInvokeEvent, chatId: string) => {
     const chatFile = path.join(CHATS_DIR, `${chatId}.json`);
     try {
-        await fs.promises.unlink(chatFile);
+        await fs.unlink(chatFile);
         return true;
     } catch (error) {
         console.error('Error deleting chat:', error);
@@ -432,11 +551,11 @@ ipcMain.handle('show-confirm-dialog', async (_event: IpcMainInvokeEvent, options
 
 ipcMain.handle('load-chats', async () => {
     try {
-        const files = await fs.promises.readdir(CHATS_DIR);
+        const files = await fs.readdir(CHATS_DIR);
         const chats = [];
         for (const file of files) {
             const chatId = path.parse(file).name;
-            const content = await fs.promises.readFile(
+            const content = await fs.readFile(
                 path.join(CHATS_DIR, file), 
                 'utf8'
             );
@@ -457,7 +576,7 @@ ipcMain.handle('load-chats', async () => {
 ipcMain.handle('load-chat', async (_event: IpcMainInvokeEvent, chatId: string) => {
     try {
         const chatFile = path.join(CHATS_DIR, `${chatId}.json`);
-        const content = await fs.promises.readFile(chatFile, 'utf8');
+        const content = await fs.readFile(chatFile, 'utf8');
         return JSON.parse(content);
     } catch (error) {
         console.error('Error loading chat:', error);
@@ -469,6 +588,7 @@ ipcMain.handle('load-chat', async (_event: IpcMainInvokeEvent, chatId: string) =
 app.whenReady().then(createWindow);
 
 app.on('window-all-closed', () => {
+    stopProxyServer();
     if (process.platform !== 'darwin') {
         app.quit();
     }

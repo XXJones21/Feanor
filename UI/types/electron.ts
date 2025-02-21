@@ -1,19 +1,23 @@
+import type { MessageRole, MessageStatus, MessageError, Tool, ToolParameter } from './chat';
+import type { Headers as NodeFetchHeaders } from 'node-fetch';
+
 /**
  * Basic message type
  */
 export interface Message {
-    role: 'user' | 'assistant' | 'system';
+    id: string;
+    role: MessageRole;
     content: string;
+    timestamp: number;
+    status: MessageStatus;
+    error?: MessageError;
 }
 
 /**
  * Chat message type
  */
 export interface ChatMessage extends Message {
-    id?: string;
-    timestamp?: number;
-    status?: 'pending' | 'complete' | 'error';
-    error?: string;
+    isStreaming?: boolean;
 }
 
 /**
@@ -21,9 +25,24 @@ export interface ChatMessage extends Message {
  */
 export interface ChatCompletionRequest {
     messages: ChatMessage[];
-    model?: string;
+    functions?: Tool[];
     temperature?: number;
     stream?: boolean;
+    function_call?: 'auto' | 'none';
+    model?: string;
+    signal?: AbortSignal;
+}
+
+/**
+ * Chat completion response type
+ */
+export interface ChatCompletionResponse {
+    choices: Array<{
+        message: {
+            content: string;
+            role?: MessageRole;
+        };
+    }>;
 }
 
 /**
@@ -35,11 +54,20 @@ export interface ToolExecutionRequest {
 }
 
 /**
+ * Tool execution response type
+ */
+export interface ToolExecutionResponse {
+    title?: string;
+    text?: string;
+    links?: string[];
+}
+
+/**
  * Stream response type
  */
 export interface StreamResponse {
     body: ReadableStream;
-    headers: Headers;
+    headers: NodeFetchHeaders;
     status: number;
     statusText: string;
 }
@@ -56,11 +84,7 @@ export interface SaveChatRequest {
  * Tools configuration type
  */
 export interface ToolsConfig {
-    tools: {
-        name: string;
-        description: string;
-        parameters: Record<string, unknown>;
-    }[];
+    tools: Tool[];
 }
 
 /**
@@ -86,14 +110,43 @@ export const IpcChannels = {
     DELETE_CHAT: 'delete-chat',
     GET_CHAT_HISTORY: 'get-chat-history',
     EXECUTE_TOOL: 'execute-tool',
-    GET_TOOLS: 'get-tools'
+    GET_TOOLS: 'get-tools',
+    // Window control channels
+    WINDOW_MINIMIZE: 'window-minimize',
+    WINDOW_MAXIMIZE: 'window-maximize',
+    WINDOW_CLOSE: 'window-close',
+    SHOW_CONFIRM_DIALOG: 'show-confirm-dialog',
+    SHOW_OPEN_DIALOG: 'show-open-dialog'
 } as const;
 
 export type IpcChannel = typeof IpcChannels[keyof typeof IpcChannels];
 
 // Bridge Types
 export interface ElectronBridge {
-    invoke: <T = any>(channel: IpcChannel, data?: any) => Promise<T>;
+    invoke: {
+        (channel: typeof IpcChannels.CHAT_COMPLETION, data: ChatCompletionRequest): Promise<ChatCompletionResponse>;
+        (channel: typeof IpcChannels.CHAT_COMPLETION_STREAM, data: ChatCompletionRequest): Promise<StreamResponse>;
+        (channel: typeof IpcChannels.EXECUTE_TOOL, data: ToolExecutionRequest): Promise<ToolExecutionResponse>;
+        (channel: typeof IpcChannels.SAVE_CHAT, data: SaveChatRequest): Promise<void>;
+        (channel: typeof IpcChannels.GET_CHAT_HISTORY): Promise<Array<{ id: string; messages: ChatMessage[] }>>;
+        (channel: typeof IpcChannels.LOAD_CHAT, chatId: string): Promise<ChatMessage[]>;
+        (channel: typeof IpcChannels.DELETE_CHAT, chatId: string): Promise<void>;
+        (channel: typeof IpcChannels.GET_TOOLS): Promise<ToolsConfig>;
+        (channel: typeof IpcChannels.SHOW_CONFIRM_DIALOG, options: { 
+            title: string; 
+            message: string; 
+            detail?: string;
+            buttons?: string[];
+            defaultId?: number;
+            type?: string;
+        }): Promise<{ response: number }>;
+        (channel: typeof IpcChannels.WINDOW_MINIMIZE): Promise<void>;
+        (channel: typeof IpcChannels.WINDOW_MAXIMIZE): Promise<void>;
+        (channel: typeof IpcChannels.WINDOW_CLOSE): Promise<void>;
+        // Generic fallback for any other channels
+        <T = any>(channel: IpcChannel, data?: any): Promise<T>;
+    };
+    showOpenDialog: () => Promise<string | null>;
     on: (channel: IpcChannel, callback: (...args: any[]) => void) => void;
     removeAllListeners: (channel: IpcChannel) => void;
 }

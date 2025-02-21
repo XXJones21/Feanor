@@ -66,7 +66,13 @@ const InputArea: React.FC<InputAreaProps> = ({
     }, [maxLength]);
 
     const handleSend = useCallback(async () => {
-        const trimmedMessage = formatMessage({ content: message, role: 'user', id: '', timestamp: Date.now() }, {
+        const trimmedMessage = formatMessage({ 
+            content: message, 
+            role: 'user', 
+            id: '', 
+            timestamp: Date.now(),
+            status: 'complete' as const
+        }, {
             formatNewlines: false,
             stripMarkdown: false
         });

@@ -1,10 +1,10 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import type { IpcRendererEvent } from 'electron';
+import { IpcChannels } from './types/electron';
 import type { 
     ChatMessage,
     ElectronBridge,
-    IpcChannel,
-    IpcChannels
+    IpcChannel
 } from './types/electron';
 
 /**
@@ -89,6 +89,16 @@ const electronBridge: ElectronBridge = {
                 timestamp: new Date().toISOString()
             });
             throw error;
+        }
+    },
+
+    showOpenDialog: async (): Promise<string | null> => {
+        try {
+            const result = await ipcRenderer.invoke(IpcChannels.SHOW_OPEN_DIALOG);
+            return result || null;
+        } catch (error) {
+            console.error('Show open dialog error:', error);
+            return null;
         }
     },
 
