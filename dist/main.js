@@ -204,8 +204,12 @@ async function processMessage(content) {
             role: 'assistant',
             content,
             timestamp: Date.now(),
-            status: 'complete',
-            isStreaming: false
+            status: 'sent',
+            isStreaming: false,
+            sender: {
+                id: 'assistant',
+                name: 'Assistant'
+            }
         };
     }
     catch (error) {
@@ -217,7 +221,7 @@ async function processMessage(content) {
 electron_1.ipcMain.handle('process-message', async (_event, content) => {
     return processMessage(content);
 });
-async function createWindow() {
+async function createMainWindow() {
     try {
         // Start proxy server first
         await startProxyServer();
@@ -228,17 +232,20 @@ async function createWindow() {
                 nodeIntegration: false,
                 contextIsolation: true,
                 sandbox: true,
-                preload: path.join(process.cwd(), 'dist/preload.js')
+                preload: path.join(process.cwd(), 'dist/preload.js'),
+                webSecurity: true
             },
             titleBarStyle: 'hidden',
             frame: false
         });
+        // Open DevTools automatically to help with debugging
+        mainWindow.webContents.openDevTools();
         // Check LM Studio connection before loading
         const isConnected = await error_handler_1.ErrorHandler.checkLMStudioConnection();
         if (!isConnected) {
             const shouldRetry = await error_handler_1.ErrorHandler.showConnectionError(mainWindow);
             if (shouldRetry) {
-                return createWindow();
+                return createMainWindow();
             }
             electron_1.app.quit();
             return;
@@ -547,7 +554,7 @@ electron_1.ipcMain.handle('load-chat', async (_event, chatId) => {
     }
 });
 // App lifecycle
-electron_1.app.whenReady().then(createWindow);
+electron_1.app.whenReady().then(createMainWindow);
 electron_1.app.on('window-all-closed', () => {
     stopProxyServer();
     if (process.platform !== 'darwin') {
@@ -556,6 +563,6 @@ electron_1.app.on('window-all-closed', () => {
 });
 electron_1.app.on('activate', () => {
     if (electron_1.BrowserWindow.getAllWindows().length === 0) {
-        createWindow();
+        createMainWindow();
     }
 });

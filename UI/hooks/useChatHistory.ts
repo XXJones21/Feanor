@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Message, ChatError } from '../types/chat';
 import { ElectronBridge, IpcChannels } from '../types/electron';
 
-export type MessageStatus = 'complete' | 'streaming' | 'error' | 'pending';
+export type MessageStatus = 'sending' | 'sent' | 'error';
 
 export interface ChatMessage extends Message {
     chatId?: string;
@@ -15,7 +15,12 @@ const SYSTEM_MESSAGE: ChatMessage = {
     content: 'You are a helpful AI assistant. Provide direct, concise answers without showing your thinking process. Focus on accuracy and clarity.',
     id: 'system-message',
     timestamp: Date.now(),
-    status: 'complete'
+    status: 'sent',
+    sender: {
+        id: 'system',
+        name: 'System',
+        avatar: undefined
+    }
 };
 
 export interface UseChatHistoryReturn {
@@ -88,7 +93,7 @@ export const useChatHistory = (): UseChatHistoryReturn => {
             ...message,
             id: message.id || crypto.randomUUID(),
             timestamp: message.timestamp || Date.now(),
-            status: 'complete'
+            status: 'sent'
         };
 
         setMessages(prevMessages => {

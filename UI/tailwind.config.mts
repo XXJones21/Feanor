@@ -1,35 +1,57 @@
 import type { Config } from "tailwindcss";
 
+// Simple config that just sets content paths
+// Theme configuration is now handled in styles.css with @theme directive
 const config: Config = {
+  darkMode: "class",
   content: [
     "./UI/**/*.{js,ts,jsx,tsx,html}",
-    "./UI/index.html"
+    "./dist/index.html"
   ],
-  darkMode: "class",
   theme: {
     extend: {
       colors: {
-        card: "#ffffff",
-        "card-foreground": "#111827",
-      },
-      backgroundColor: {
-        card: "#ffffff",
-      },
-      textColor: {
-        "card-foreground": "#111827",
-      },
-      animation: {
-        "bounce": "bounce 1s infinite",
-      },
-      keyframes: {
-        bounce: {
-          "0%, 100%": { transform: "translateY(0)" },
-          "50%": { transform: "translateY(-0.25rem)" },
+        background: 'hsl(var(--background))',
+        foreground: 'hsl(var(--foreground))',
+        card: {
+          DEFAULT: 'hsl(var(--card))',
+          foreground: 'hsl(var(--card-foreground))'
         },
+        popover: {
+          DEFAULT: 'hsl(var(--popover))',
+          foreground: 'hsl(var(--popover-foreground))'
+        },
+        primary: {
+          DEFAULT: 'hsl(var(--primary))',
+          foreground: 'hsl(var(--primary-foreground))'
+        },
+        secondary: {
+          DEFAULT: 'hsl(var(--secondary))',
+          foreground: 'hsl(var(--secondary-foreground))'
+        },
+        muted: {
+          DEFAULT: 'hsl(var(--muted))',
+          foreground: 'hsl(var(--muted-foreground))'
+        },
+        accent: {
+          DEFAULT: 'hsl(var(--accent))',
+          foreground: 'hsl(var(--accent-foreground))'
+        },
+        destructive: {
+          DEFAULT: 'hsl(var(--destructive))',
+          foreground: 'hsl(var(--destructive-foreground))'
+        },
+        border: 'hsl(var(--border))',
+        input: 'hsl(var(--input))',
+        ring: 'hsl(var(--ring))'
       },
-    },
-  },
-  plugins: [],
+      borderRadius: {
+        lg: 'var(--radius-lg)',
+        md: 'var(--radius-md)',
+        sm: 'var(--radius-sm)'
+      }
+    }
+  }
 };
 
 export default config; 

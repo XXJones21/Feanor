@@ -5,7 +5,20 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const marked_1 = require("marked");
 const highlight_js_1 = __importDefault(require("highlight.js"));
-const electron_1 = require("./types/electron");
+// We'll define IPC channels directly to avoid import issues
+const IpcChannels = {
+    CHAT_COMPLETION: 'chat-completion',
+    EXECUTE_TOOL: 'execute-tool',
+    GET_TOOLS: 'get-tools-config',
+    GET_CHAT_HISTORY: 'get-chat-history',
+    LOAD_CHAT: 'load-chat',
+    SAVE_CHAT: 'save-chat',
+    DELETE_CHAT: 'delete-chat',
+    WINDOW_MINIMIZE: 'window-minimize',
+    WINDOW_MAXIMIZE: 'window-maximize',
+    WINDOW_CLOSE: 'window-close',
+    SHOW_CONFIRM_DIALOG: 'show-confirm-dialog'
+};
 // Configure markdown renderer
 marked_1.marked.setOptions({
     highlight: (code, lang) => {
@@ -19,6 +32,8 @@ marked_1.marked.setOptions({
 let currentChatId = null;
 let currentAttachment = null;
 let toolsConfig = null;
+// Declare elements variable but don't populate yet
+let elements;
 // Tool patterns for automatic detection
 const TOOL_PATTERNS = {
     'scrape_webpage': {
@@ -46,25 +61,10 @@ const TOOL_PATTERNS = {
         ]
     }
 };
-// Get DOM elements
-const elements = {
-    messageList: document.getElementById('messageList'),
-    messageInput: document.getElementById('messageInput'),
-    sendBtn: document.getElementById('sendBtn'),
-    newChatBtn: document.getElementById('newChatBtn'),
-    chatList: document.getElementById('chatList'),
-    attachmentPreview: document.getElementById('attachmentPreview'),
-    toolsList: document.getElementById('toolsList'),
-    loadingIndicator: document.getElementById('loadingIndicator'),
-    minimizeBtn: document.getElementById('minimizeBtn'),
-    maximizeBtn: document.getElementById('maximizeBtn'),
-    closeBtn: document.getElementById('closeBtn'),
-    deleteChatBtn: document.getElementById('deleteChatBtn')
-};
 // Initialize tools
 async function initializeTools() {
     try {
-        toolsConfig = await window.electron.invoke(electron_1.IpcChannels.GET_TOOLS);
+        toolsConfig = await window.electron.invoke(IpcChannels.GET_TOOLS);
         if (toolsConfig?.tools) {
             renderToolsList();
             return true;
@@ -103,7 +103,11 @@ async function handleMessage(message) {
                 content: message,
                 id: Date.now().toString(),
                 timestamp: Date.now(),
-                status: 'complete'
+                status: 'sent',
+                sender: {
+                    id: 'user',
+                    name: 'You'
+                }
             };
             appendMessage(userMessage);
             // Check if it's a known protected site
@@ -116,7 +120,7 @@ async function handleMessage(message) {
             try {
                 if (!isProtectedSite) {
                     // Try to scrape content first
-                    const result = await window.electron.invoke(electron_1.IpcChannels.EXECUTE_TOOL, {
+                    const result = await window.electron.invoke(IpcChannels.EXECUTE_TOOL, {
                         tool: 'scrape_webpage',
                         params: { url }
                     });
@@ -134,24 +138,36 @@ async function handleMessage(message) {
                                 content: 'You are analyzing content from a webpage. Use the provided content to answer the user\'s query.',
                                 id: Date.now().toString(),
                                 timestamp: Date.now(),
-                                status: 'complete'
+                                status: 'sent',
+                                sender: {
+                                    id: 'system',
+                                    name: 'System'
+                                }
                             },
                             {
                                 role: 'system',
                                 content: JSON.stringify(scrapedContent),
                                 id: (Date.now() + 1).toString(),
                                 timestamp: Date.now(),
-                                status: 'complete'
+                                status: 'sent',
+                                sender: {
+                                    id: 'system',
+                                    name: 'System'
+                                }
                             },
                             {
                                 role: 'user',
                                 content: `Please analyze this webpage and ${message}`,
                                 id: (Date.now() + 2).toString(),
                                 timestamp: Date.now(),
-                                status: 'complete'
+                                status: 'sent',
+                                sender: {
+                                    id: 'user',
+                                    name: 'You'
+                                }
                             }
                         ];
-                        const aiResponse = await window.electron.invoke(electron_1.IpcChannels.CHAT_COMPLETION, {
+                        const aiResponse = await window.electron.invoke(IpcChannels.CHAT_COMPLETION, {
                             messages,
                             functions: toolsConfig?.tools || []
                         });
@@ -160,7 +176,11 @@ async function handleMessage(message) {
                             content: aiResponse.choices[0].message.content,
                             id: Date.now().toString(),
                             timestamp: Date.now(),
-                            status: 'complete'
+                            status: 'sent',
+                            sender: {
+                                id: 'assistant',
+                                name: 'Assistant'
+                            }
                         };
                         appendMessage(assistantMessage);
                         return;
@@ -174,17 +194,25 @@ async function handleMessage(message) {
                         content: `The user has shared a URL (${url}) that cannot be directly accessed. Based on the URL and your knowledge, provide a helpful response. If making assumptions, clearly indicate them.`,
                         id: Date.now().toString(),
                         timestamp: Date.now(),
-                        status: 'complete'
+                        status: 'sent',
+                        sender: {
+                            id: 'system',
+                            name: 'System'
+                        }
                     },
                     {
                         role: 'user',
                         content: message,
                         id: (Date.now() + 1).toString(),
                         timestamp: Date.now(),
-                        status: 'complete'
+                        status: 'sent',
+                        sender: {
+                            id: 'user',
+                            name: 'You'
+                        }
                     }
                 ];
-                const aiResponse = await window.electron.invoke(electron_1.IpcChannels.CHAT_COMPLETION, {
+                const aiResponse = await window.electron.invoke(IpcChannels.CHAT_COMPLETION, {
                     messages,
                     functions: toolsConfig?.tools || []
                 });
@@ -193,7 +221,11 @@ async function handleMessage(message) {
                     content: aiResponse.choices[0].message.content,
                     id: Date.now().toString(),
                     timestamp: Date.now(),
-                    status: 'complete'
+                    status: 'sent',
+                    sender: {
+                        id: 'assistant',
+                        name: 'Assistant'
+                    }
                 };
                 appendMessage(assistantMessage);
             }
@@ -212,10 +244,14 @@ async function handleMessage(message) {
             content: message,
             id: Date.now().toString(),
             timestamp: Date.now(),
-            status: 'complete'
+            status: 'sent',
+            sender: {
+                id: 'user',
+                name: 'You'
+            }
         };
         appendMessage(userMessage);
-        const result = await window.electron.invoke(electron_1.IpcChannels.CHAT_COMPLETION, {
+        const result = await window.electron.invoke(IpcChannels.CHAT_COMPLETION, {
             messages: [
                 ...getAllMessages() || [],
                 userMessage
@@ -227,7 +263,11 @@ async function handleMessage(message) {
             content: result.choices[0].message.content,
             id: Date.now().toString(),
             timestamp: Date.now(),
-            status: 'complete'
+            status: 'sent',
+            sender: {
+                id: 'assistant',
+                name: 'Assistant'
+            }
         };
         appendMessage(assistantMessage);
     }
@@ -248,6 +288,10 @@ function handleError(error) {
             message: error.message || 'Unknown error occurred',
             code: 'PROCESSING_ERROR',
             retryable: true
+        },
+        sender: {
+            id: 'assistant',
+            name: 'Assistant'
         }
     });
 }
@@ -267,7 +311,7 @@ function appendMessage(message) {
     elements.messageList.scrollTop = elements.messageList.scrollHeight;
     // Save chat if we have a chat ID
     if (currentChatId) {
-        void window.electron.invoke(electron_1.IpcChannels.SAVE_CHAT, {
+        void window.electron.invoke(IpcChannels.SAVE_CHAT, {
             chatId: currentChatId,
             messages: getAllMessages() || []
         });
@@ -285,12 +329,16 @@ function getAllMessages() {
             content: el.textContent || '',
             id: `msg-${index}`,
             timestamp: Date.now(),
-            status: isError ? 'error' : 'complete',
+            status: isError ? 'error' : 'sent',
             error: isError ? {
                 message: 'Error processing message',
                 code: 'DISPLAY_ERROR',
                 retryable: true
-            } : undefined
+            } : undefined,
+            sender: {
+                id: el.classList.contains('user') ? 'user' : 'assistant',
+                name: el.classList.contains('user') ? 'You' : 'Assistant'
+            }
         };
     });
 }
@@ -298,7 +346,7 @@ function getAllMessages() {
 async function executeTool(toolName, params = {}) {
     try {
         elements.loadingIndicator.style.display = 'block';
-        return await window.electron.invoke(electron_1.IpcChannels.EXECUTE_TOOL, { tool: toolName, params });
+        return await window.electron.invoke(IpcChannels.EXECUTE_TOOL, { tool: toolName, params });
     }
     catch (error) {
         console.error(`Error executing tool ${toolName}:`, error);
@@ -316,7 +364,7 @@ async function createNewChat() {
     await updateChatList();
 }
 async function updateChatList() {
-    const chats = await window.electron.invoke(electron_1.IpcChannels.GET_CHAT_HISTORY);
+    const chats = await window.electron.invoke(IpcChannels.GET_CHAT_HISTORY);
     elements.chatList.innerHTML = '';
     chats.forEach(chat => {
         const chatItem = document.createElement('div');
@@ -330,7 +378,7 @@ async function updateChatList() {
 }
 async function loadChat(chatId) {
     try {
-        const messages = await window.electron.invoke(electron_1.IpcChannels.LOAD_CHAT, chatId);
+        const messages = await window.electron.invoke(IpcChannels.LOAD_CHAT, chatId);
         currentChatId = chatId;
         elements.messageList.innerHTML = '';
         messages.forEach(message => appendMessage(message));
@@ -349,7 +397,7 @@ async function deleteCurrentChat() {
     if (!currentChatId)
         return;
     try {
-        const confirmDelete = await window.electron.invoke(electron_1.IpcChannels.SHOW_CONFIRM_DIALOG, {
+        const confirmDelete = await window.electron.invoke(IpcChannels.SHOW_CONFIRM_DIALOG, {
             title: 'Delete Chat',
             message: 'Are you sure you want to delete this chat?',
             detail: 'This action cannot be undone.',
@@ -359,7 +407,7 @@ async function deleteCurrentChat() {
         });
         if (confirmDelete.response !== 0)
             return;
-        await window.electron.invoke(electron_1.IpcChannels.DELETE_CHAT, currentChatId);
+        await window.electron.invoke(IpcChannels.DELETE_CHAT, currentChatId);
         // Remove from UI
         const chatItem = Array.from(document.querySelectorAll('.chat-item'))
             .find(item => item.onclick?.toString().includes(currentChatId || ''));
@@ -369,7 +417,7 @@ async function deleteCurrentChat() {
         currentChatId = null;
         elements.deleteChatBtn.style.display = 'none';
         // Create new chat if no chats left
-        const remainingChats = await window.electron.invoke(electron_1.IpcChannels.GET_CHAT_HISTORY);
+        const remainingChats = await window.electron.invoke(IpcChannels.GET_CHAT_HISTORY);
         if (remainingChats.length === 0) {
             await createNewChat();
         }
@@ -382,9 +430,52 @@ async function deleteCurrentChat() {
         handleError(error);
     }
 }
+// Add a safety check function to ensure electron is available
+function checkElectronAvailability() {
+    if (!window.electron) {
+        console.error('window.electron is not available!');
+        alert('Electron API not available. This application requires Electron to run properly.');
+        return false;
+    }
+    // Check if invoke method exists
+    if (typeof window.electron.invoke !== 'function') {
+        console.error('window.electron.invoke is not a function!');
+        alert('Electron IPC methods not available. Communication with the main process is not possible.');
+        return false;
+    }
+    console.log('Electron API is available', window.electron);
+    return true;
+}
 // Initialization
 async function initialize() {
     try {
+        console.log('Initializing application...');
+        // Check Electron availability first
+        if (!checkElectronAvailability()) {
+            throw new Error('Electron API not available');
+        }
+        // Get DOM elements after DOM is fully loaded
+        elements = {
+            messageList: document.getElementById('messageList'),
+            messageInput: document.getElementById('messageInput'),
+            sendBtn: document.getElementById('sendBtn'),
+            newChatBtn: document.getElementById('newChatBtn'),
+            chatList: document.getElementById('chatList'),
+            attachmentPreview: document.getElementById('attachmentPreview'),
+            toolsList: document.getElementById('toolsList'),
+            loadingIndicator: document.getElementById('loadingIndicator'),
+            minimizeBtn: document.getElementById('minimizeBtn'),
+            maximizeBtn: document.getElementById('maximizeBtn'),
+            closeBtn: document.getElementById('closeBtn'),
+            deleteChatBtn: document.getElementById('deleteChatBtn')
+        };
+        // Debug log each DOM element
+        Object.entries(elements).forEach(([key, element]) => {
+            console.log(`DOM Element '${key}': ${element ? 'Found' : 'NOT FOUND'}`);
+            if (!element) {
+                console.error(`DOM Element '${key}' not found. This could cause errors.`);
+            }
+        });
         // Initialize tools first
         const toolsInitialized = await initializeTools();
         if (!toolsInitialized) {
@@ -398,29 +489,165 @@ async function initialize() {
             await updateChatList();
         }
         // Set up event listeners
-        elements.sendBtn.onclick = () => {
-            const message = elements.messageInput.value.trim();
-            if (message) {
-                void handleMessage(message);
-                elements.messageInput.value = '';
-            }
-        };
-        elements.messageInput.onkeypress = (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                elements.sendBtn.click();
-            }
-        };
-        elements.newChatBtn.onclick = () => void createNewChat();
-        elements.deleteChatBtn.onclick = () => void deleteCurrentChat();
-        elements.minimizeBtn.onclick = () => window.electron.invoke(electron_1.IpcChannels.WINDOW_MINIMIZE);
-        elements.maximizeBtn.onclick = () => window.electron.invoke(electron_1.IpcChannels.WINDOW_MAXIMIZE);
-        elements.closeBtn.onclick = () => window.electron.invoke(electron_1.IpcChannels.WINDOW_CLOSE);
+        // Using both onclick and addEventListener for redundancy
+        console.log('Setting up event listeners...');
+        if (elements.sendBtn) {
+            console.log('Attaching click handler to Send button');
+            elements.sendBtn.onclick = async () => {
+                console.log('Send button clicked');
+                const message = elements.messageInput.value.trim();
+                if (message) {
+                    try {
+                        await handleMessage(message);
+                        elements.messageInput.value = '';
+                    }
+                    catch (error) {
+                        console.error('Error handling message:', error);
+                        handleError(error);
+                    }
+                }
+            };
+            // Add a second event listener for redundancy
+            elements.sendBtn.addEventListener('click', async () => {
+                console.log('Send button clicked (addEventListener)');
+                const message = elements.messageInput.value.trim();
+                if (message) {
+                    try {
+                        await handleMessage(message);
+                        elements.messageInput.value = '';
+                    }
+                    catch (error) {
+                        console.error('Error handling message (addEventListener):', error);
+                        handleError(error);
+                    }
+                }
+            });
+        }
+        if (elements.messageInput) {
+            elements.messageInput.onkeypress = (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    console.log('Enter key pressed, clicking send button');
+                    elements.sendBtn.click();
+                }
+            };
+        }
+        if (elements.newChatBtn) {
+            console.log('Attaching click handler to New Chat button');
+            elements.newChatBtn.onclick = async () => {
+                console.log('New chat button clicked');
+                try {
+                    await createNewChat();
+                }
+                catch (error) {
+                    console.error('Error creating new chat:', error);
+                    handleError(error);
+                }
+            };
+            // Add a second event listener for redundancy
+            elements.newChatBtn.addEventListener('click', async () => {
+                console.log('New chat button clicked (addEventListener)');
+                try {
+                    await createNewChat();
+                }
+                catch (error) {
+                    console.error('Error creating new chat (addEventListener):', error);
+                    handleError(error);
+                }
+            });
+        }
+        if (elements.deleteChatBtn) {
+            elements.deleteChatBtn.onclick = async () => {
+                console.log('Delete chat button clicked');
+                try {
+                    await deleteCurrentChat();
+                }
+                catch (error) {
+                    console.error('Error deleting chat:', error);
+                    handleError(error);
+                }
+            };
+        }
+        if (elements.minimizeBtn) {
+            elements.minimizeBtn.onclick = () => window.electron.invoke(IpcChannels.WINDOW_MINIMIZE);
+        }
+        if (elements.maximizeBtn) {
+            elements.maximizeBtn.onclick = () => window.electron.invoke(IpcChannels.WINDOW_MAXIMIZE);
+        }
+        if (elements.closeBtn) {
+            elements.closeBtn.onclick = () => window.electron.invoke(IpcChannels.WINDOW_CLOSE);
+        }
+        console.log('Initialization complete!');
     }
     catch (error) {
         console.error('Initialization error:', error);
         handleError(error);
     }
 }
-// Start initialization
-void initialize();
+// Wait for DOMContentLoaded, then initialize
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('DOM fully loaded, starting application initialization...');
+    // Add custom event listeners as a third fallback mechanism
+    document.addEventListener('app:send_message', async () => {
+        console.log('Custom send message event received');
+        if (elements?.messageInput && elements?.sendBtn) {
+            const message = elements.messageInput.value.trim();
+            if (message) {
+                try {
+                    await handleMessage(message);
+                    elements.messageInput.value = '';
+                }
+                catch (error) {
+                    console.error('Error handling message (custom event):', error);
+                    handleError(error);
+                }
+            }
+        }
+        else {
+            console.error('Elements not initialized when custom event fired');
+        }
+    });
+    document.addEventListener('app:new_chat', async () => {
+        console.log('Custom new chat event received');
+        try {
+            await createNewChat();
+        }
+        catch (error) {
+            console.error('Error creating new chat (custom event):', error);
+            handleError(error);
+        }
+    });
+    document.addEventListener('app:delete_chat', async () => {
+        console.log('Custom delete chat event received');
+        try {
+            await deleteCurrentChat();
+        }
+        catch (error) {
+            console.error('Error deleting chat (custom event):', error);
+            handleError(error);
+        }
+    });
+    initialize().catch(error => {
+        console.error('Error during initialization:', error);
+        alert('Application initialization failed. Please refresh or restart the application.');
+    });
+});
+// Make certain functions available on window for debugging
+window.debugApp = {
+    checkElectronAvailability,
+    createNewChat,
+    sendMessage: async () => {
+        const message = elements?.messageInput?.value.trim();
+        if (message) {
+            try {
+                await handleMessage(message);
+                if (elements?.messageInput) {
+                    elements.messageInput.value = '';
+                }
+            }
+            catch (error) {
+                console.error('Debug send error:', error);
+            }
+        }
+    }
+};

@@ -17,10 +17,10 @@
                     <button id="closeBtn" class="window-control window-control-close"></button>
                 </div>
             </div>
-            <button id="newChatBtn" class="chat-button-new">+ New Chat</button>
+            <button id="newChatBtn" class="chat-button-new" onclick="console.log('New chat button clicked (inline)'); document.dispatchEvent(new CustomEvent('app:new_chat'));">+ New Chat</button>
             <div id="chatList" class="chat-list"></div>
             <div class="chat-section">
-                <button id="deleteChatBtn" class="chat-button-delete" style="display: none;">🗑️ Delete Chat</button>
+                <button id="deleteChatBtn" class="chat-button-delete" style="display: none;" onclick="console.log('Delete chat button clicked (inline)'); document.dispatchEvent(new CustomEvent('app:delete_chat'));">🗑️ Delete Chat</button>
             </div>
             <div id="toolsList" class="chat-section"></div>
             <div class="status-bar">
@@ -42,11 +42,18 @@
                 <div id="attachmentPreview" class="attachment-preview"></div>
                 <div class="input-container">
                     <textarea id="messageInput" class="message-input" placeholder="Type a message..."></textarea>
-                    <button id="sendBtn" class="send-button">Send</button>
+                    <button id="sendBtn" class="send-button" onclick="console.log('Send button clicked (inline)'); document.dispatchEvent(new CustomEvent('app:send_message'));">Send</button>
                 </div>
             </div>
         </div>
     </div>
-    <script src="./renderer.js" type="module" defer></script>
+    <script src="./renderer.js" defer></script>
+    <!-- Debug Panel -->
+    <div style="position: fixed; bottom: 10px; right: 10px; background: rgba(0,0,0,0.7); padding: 10px; border-radius: 5px; color: white; z-index: 9999;">
+        <div style="font-weight: bold; margin-bottom: 5px;">Debug Controls</div>
+        <button onclick="window.debugApp?.sendMessage()" style="background: #f44336; color: white; border: none; padding: 5px 10px; margin: 2px; border-radius: 3px;">Debug Send</button>
+        <button onclick="window.debugApp?.createNewChat()" style="background: #4CAF50; color: white; border: none; padding: 5px 10px; margin: 2px; border-radius: 3px;">Debug New Chat</button>
+        <button onclick="window.debugApp?.checkElectronAvailability()" style="background: #2196F3; color: white; border: none; padding: 5px 10px; margin: 2px; border-radius: 3px;">Check Electron</button>
+    </div>
 </body>
 </html> 

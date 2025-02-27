@@ -201,8 +201,12 @@ async function processMessage(content: string): Promise<ChatMessage> {
             role: 'assistant',
             content,
             timestamp: Date.now(),
-            status: 'complete',
-            isStreaming: false
+            status: 'sent',
+            isStreaming: false,
+            sender: {
+                id: 'assistant',
+                name: 'Assistant'
+            }
         };
     } catch (error) {
         console.error('Error processing message:', error);
@@ -215,7 +219,7 @@ ipcMain.handle('process-message', async (_event: IpcMainInvokeEvent, content: st
     return processMessage(content);
 });
 
-async function createWindow(): Promise<void> {
+async function createMainWindow() {
     try {
         // Start proxy server first
         await startProxyServer();
@@ -227,18 +231,22 @@ async function createWindow(): Promise<void> {
                 nodeIntegration: false,
                 contextIsolation: true,
                 sandbox: true,
-                preload: path.join(process.cwd(), 'dist/preload.js')
+                preload: path.join(process.cwd(), 'dist/preload.js'),
+                webSecurity: true
             },
             titleBarStyle: 'hidden',
             frame: false
         });
+
+        // Open DevTools automatically to help with debugging
+        mainWindow.webContents.openDevTools();
 
         // Check LM Studio connection before loading
         const isConnected = await ErrorHandler.checkLMStudioConnection();
         if (!isConnected) {
             const shouldRetry = await ErrorHandler.showConnectionError(mainWindow);
             if (shouldRetry) {
-                return createWindow();
+                return createMainWindow();
             }
             app.quit();
             return;
@@ -585,7 +593,7 @@ ipcMain.handle('load-chat', async (_event: IpcMainInvokeEvent, chatId: string) =
 });
 
 // App lifecycle
-app.whenReady().then(createWindow);
+app.whenReady().then(createMainWindow);
 
 app.on('window-all-closed', () => {
     stopProxyServer();
@@ -596,6 +604,6 @@ app.on('window-all-closed', () => {
 
 app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
-        createWindow();
+        createMainWindow();
     }
 }); 

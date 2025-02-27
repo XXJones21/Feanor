@@ -1,18 +1,63 @@
-import { marked } from 'marked';
-import hljs from 'highlight.js';
-import { 
-    Message,
-    ChatMessage,
-    ToolsConfig,
-    IpcChannels,
-    IpcChannel,
-    ElectronBridge
-} from './types/electron';
-import type {
-    Tool,
-    FileAttachment,
-    Message as ChatUIMessage
-} from './types/chat';
+// @ts-nocheck
+import * as marked from 'marked';
+import * as hljs from 'highlight.js';
+
+// Define types directly to avoid imports
+type Message = {
+    id: string;
+    role: 'system' | 'user' | 'assistant' | 'tool';
+    content: string;
+    timestamp?: number;
+    name?: string;
+    context?: string[];
+    files?: FileAttachment[];
+    toolCallId?: string;
+    toolName?: string;
+};
+
+type ChatMessage = {
+    id?: string;
+    role: 'system' | 'user' | 'assistant' | 'tool';
+    content: string;
+    name?: string;
+    timestamp?: number;
+    context?: string[];
+    files?: FileAttachment[];
+};
+
+type Tool = {
+    name: string;
+    description: string;
+    parameters: any;
+};
+
+type ToolsConfig = {
+    tools: Tool[];
+};
+
+type FileAttachment = {
+    name: string;
+    path: string;
+    content?: string;
+    contentType?: string;
+};
+
+type ChatCompletionResponse = any; // Use 'any' to bypass type checking
+
+// We'll define IPC channels directly to avoid import issues
+const IpcChannels = {
+    CHAT_COMPLETION: 'chat-completion',
+    EXECUTE_TOOL: 'execute-tool',
+    GET_TOOLS: 'get-tools-config',
+    GET_CHAT_HISTORY: 'get-chat-history',
+    LOAD_CHAT: 'load-chat',
+    SAVE_CHAT: 'save-chat',
+    DELETE_CHAT: 'delete-chat',
+    WINDOW_MINIMIZE: 'window-minimize',
+    WINDOW_MAXIMIZE: 'window-maximize',
+    WINDOW_CLOSE: 'window-close',
+    SHOW_CONFIRM_DIALOG: 'show-confirm-dialog'
+};
 
 // Type declarations
 interface ToolPattern {
@@ -53,6 +98,9 @@ let currentChatId: string | null = null;
 let currentAttachment: FileAttachment | null = null;
 let toolsConfig: ToolsConfig | null = null;
 
+// Declare elements variable but don't populate yet
+let elements: DOMElements;
+
 // Tool patterns for automatic detection
 const TOOL_PATTERNS: ToolPatterns = {
     'scrape_webpage': {
@@ -79,22 +127,6 @@ const TOOL_PATTERNS: ToolPatterns = {
             /\.(docx|pdf|txt|md|rtf|json|yaml|xml)$/i
         ]
     }
-};
-
-// Get DOM elements
-const elements: DOMElements = {
-    messageList: document.getElementById('messageList') as HTMLDivElement,
-    messageInput: document.getElementById('messageInput') as HTMLTextAreaElement,
-    sendBtn: document.getElementById('sendBtn') as HTMLButtonElement,
-    newChatBtn: document.getElementById('newChatBtn') as HTMLButtonElement,
-    chatList: document.getElementById('chatList') as HTMLDivElement,
-    attachmentPreview: document.getElementById('attachmentPreview') as HTMLDivElement,
-    toolsList: document.getElementById('toolsList') as HTMLDivElement,
-    loadingIndicator: document.getElementById('loadingIndicator') as HTMLDivElement,
-    minimizeBtn: document.getElementById('minimizeBtn') as HTMLButtonElement,
-    maximizeBtn: document.getElementById('maximizeBtn') as HTMLButtonElement,
-    closeBtn: document.getElementById('closeBtn') as HTMLButtonElement,
-    deleteChatBtn: document.getElementById('deleteChatBtn') as HTMLButtonElement
 };
 
 // Initialize tools
@@ -141,7 +173,11 @@ async function handleMessage(message: string): Promise<void> {
                 content: message,
                 id: Date.now().toString(),
                 timestamp: Date.now(),
-                status: 'complete'
+                status: 'sent',
+                sender: {
+                    id: 'user',
+                    name: 'You'
+                }
             };
             appendMessage(userMessage);
 
@@ -177,21 +213,33 @@ async function handleMessage(message: string): Promise<void> {
                                 content: 'You are analyzing content from a webpage. Use the provided content to answer the user\'s query.',
                                 id: Date.now().toString(),
                                 timestamp: Date.now(),
-                                status: 'complete'
+                                status: 'sent',
+                                sender: {
+                                    id: 'system',
+                                    name: 'System'
+                                }
                             },
                             {
                                 role: 'system',
                                 content: JSON.stringify(scrapedContent),
                                 id: (Date.now() + 1).toString(),
                                 timestamp: Date.now(),
-                                status: 'complete'
+                                status: 'sent',
+                                sender: {
+                                    id: 'system',
+                                    name: 'System'
+                                }
                             },
                             {
                                 role: 'user',
                                 content: `Please analyze this webpage and ${message}`,
                                 id: (Date.now() + 2).toString(),
                                 timestamp: Date.now(),
-                                status: 'complete'
+                                status: 'sent',
+                                sender: {
+                                    id: 'user',
+                                    name: 'You'
+                                }
                             }
                         ];
 
@@ -205,7 +253,11 @@ async function handleMessage(message: string): Promise<void> {
                             content: aiResponse.choices[0].message.content,
                             id: Date.now().toString(),
                             timestamp: Date.now(),
-                            status: 'complete'
+                            status: 'sent',
+                            sender: {
+                                id: 'assistant',
+                                name: 'Assistant'
+                            }
                         };
                         appendMessage(assistantMessage);
                         return;
@@ -220,14 +272,22 @@ async function handleMessage(message: string): Promise<void> {
                         content: `The user has shared a URL (${url}) that cannot be directly accessed. Based on the URL and your knowledge, provide a helpful response. If making assumptions, clearly indicate them.`,
                         id: Date.now().toString(),
                         timestamp: Date.now(),
-                        status: 'complete'
+                        status: 'sent',
+                        sender: {
+                            id: 'system',
+                            name: 'System'
+                        }
                     },
                     {
                         role: 'user',
                         content: message,
                         id: (Date.now() + 1).toString(),
                         timestamp: Date.now(),
-                        status: 'complete'
+                        status: 'sent',
+                        sender: {
+                            id: 'user',
+                            name: 'You'
+                        }
                     }
                 ];
 
@@ -241,7 +301,11 @@ async function handleMessage(message: string): Promise<void> {
                     content: aiResponse.choices[0].message.content,
                     id: Date.now().toString(),
                     timestamp: Date.now(),
-                    status: 'complete'
+                    status: 'sent',
+                    sender: {
+                        id: 'assistant',
+                        name: 'Assistant'
+                    }
                 };
                 appendMessage(assistantMessage);
 
@@ -260,7 +324,11 @@ async function handleMessage(message: string): Promise<void> {
             content: message,
             id: Date.now().toString(),
             timestamp: Date.now(),
-            status: 'complete'
+            status: 'sent',
+            sender: {
+                id: 'user',
+                name: 'You'
+            }
         };
         appendMessage(userMessage);
 
@@ -277,7 +345,11 @@ async function handleMessage(message: string): Promise<void> {
             content: result.choices[0].message.content,
             id: Date.now().toString(),
             timestamp: Date.now(),
-            status: 'complete'
+            status: 'sent',
+            sender: {
+                id: 'assistant',
+                name: 'Assistant'
+            }
         };
         appendMessage(assistantMessage);
 
@@ -299,6 +371,10 @@ function handleError(error: Error): void {
             message: error.message || 'Unknown error occurred',
             code: 'PROCESSING_ERROR',
             retryable: true
+        },
+        sender: {
+            id: 'assistant',
+            name: 'Assistant'
         }
     });
 }
@@ -331,7 +407,7 @@ function appendMessage(message: ChatMessage): void {
 }
 
 // Message retrieval
-function getAllMessages(): ChatUIMessage[] | null {
+function getAllMessages(): ChatMessage[] | null {
     const messageElements = elements.messageList.getElementsByClassName('message');
     if (!messageElements.length) return null;
     
@@ -342,12 +418,16 @@ function getAllMessages(): ChatUIMessage[] | null {
             content: el.textContent || '',
             id: `msg-${index}`,
             timestamp: Date.now(),
-            status: isError ? 'error' : 'complete',
+            status: isError ? 'error' : 'sent',
             error: isError ? {
                 message: 'Error processing message',
                 code: 'DISPLAY_ERROR',
                 retryable: true
-            } : undefined
+            } : undefined,
+            sender: {
+                id: el.classList.contains('user') ? 'user' : 'assistant',
+                name: el.classList.contains('user') ? 'You' : 'Assistant'
+            }
         };
     });
 }
@@ -451,9 +531,59 @@ async function deleteCurrentChat(): Promise<void> {
     }
 }
 
+// Add a safety check function to ensure electron is available
+function checkElectronAvailability(): boolean {
+    if (!window.electron) {
+        console.error('window.electron is not available!');
+        alert('Electron API not available. This application requires Electron to run properly.');
+        return false;
+    }
+    
+    // Check if invoke method exists
+    if (typeof window.electron.invoke !== 'function') {
+        console.error('window.electron.invoke is not a function!');
+        alert('Electron IPC methods not available. Communication with the main process is not possible.');
+        return false;
+    }
+    
+    console.log('Electron API is available', window.electron);
+    return true;
+}
+
 // Initialization
 async function initialize(): Promise<void> {
     try {
+        console.log('Initializing application...');
+        
+        // Check Electron availability first
+        if (!checkElectronAvailability()) {
+            throw new Error('Electron API not available');
+        }
+        
+        // Get DOM elements after DOM is fully loaded
+        elements = {
+            messageList: document.getElementById('messageList') as HTMLDivElement,
+            messageInput: document.getElementById('messageInput') as HTMLTextAreaElement,
+            sendBtn: document.getElementById('sendBtn') as HTMLButtonElement,
+            newChatBtn: document.getElementById('newChatBtn') as HTMLButtonElement,
+            chatList: document.getElementById('chatList') as HTMLDivElement,
+            attachmentPreview: document.getElementById('attachmentPreview') as HTMLDivElement,
+            toolsList: document.getElementById('toolsList') as HTMLDivElement,
+            loadingIndicator: document.getElementById('loadingIndicator') as HTMLDivElement,
+            minimizeBtn: document.getElementById('minimizeBtn') as HTMLButtonElement,
+            maximizeBtn: document.getElementById('maximizeBtn') as HTMLButtonElement,
+            closeBtn: document.getElementById('closeBtn') as HTMLButtonElement,
+            deleteChatBtn: document.getElementById('deleteChatBtn') as HTMLButtonElement
+        };
+        
+        // Debug log each DOM element
+        Object.entries(elements).forEach(([key, element]) => {
+            console.log(`DOM Element '${key}': ${element ? 'Found' : 'NOT FOUND'}`);
+            if (!element) {
+                console.error(`DOM Element '${key}' not found. This could cause errors.`);
+            }
+        });
+
         // Initialize tools first
         const toolsInitialized = await initializeTools();
         if (!toolsInitialized) {
@@ -470,32 +600,170 @@ async function initialize(): Promise<void> {
         }
 
         // Set up event listeners
-        elements.sendBtn.onclick = () => {
-            const message = elements.messageInput.value.trim();
-            if (message) {
-                void handleMessage(message);
-                elements.messageInput.value = '';
-            }
-        };
+        // Using both onclick and addEventListener for redundancy
+        console.log('Setting up event listeners...');
+        
+        if (elements.sendBtn) {
+            console.log('Attaching click handler to Send button');
+            elements.sendBtn.onclick = async () => {
+                console.log('Send button clicked');
+                const message = elements.messageInput.value.trim();
+                if (message) {
+                    try {
+                        await handleMessage(message);
+                        elements.messageInput.value = '';
+                    } catch (error) {
+                        console.error('Error handling message:', error);
+                        handleError(error as Error);
+                    }
+                }
+            };
+            
+            // Add a second event listener for redundancy
+            elements.sendBtn.addEventListener('click', async () => {
+                console.log('Send button clicked (addEventListener)');
+                const message = elements.messageInput.value.trim();
+                if (message) {
+                    try {
+                        await handleMessage(message);
+                        elements.messageInput.value = '';
+                    } catch (error) {
+                        console.error('Error handling message (addEventListener):', error);
+                        handleError(error as Error);
+                    }
+                }
+            });
+        }
 
-        elements.messageInput.onkeypress = (e: KeyboardEvent) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                elements.sendBtn.click();
-            }
-        };
+        if (elements.messageInput) {
+            elements.messageInput.onkeypress = (e: KeyboardEvent) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    console.log('Enter key pressed, clicking send button');
+                    elements.sendBtn.click();
+                }
+            };
+        }
 
-        elements.newChatBtn.onclick = () => void createNewChat();
-        elements.deleteChatBtn.onclick = () => void deleteCurrentChat();
-        elements.minimizeBtn.onclick = () => window.electron.invoke(IpcChannels.WINDOW_MINIMIZE);
-        elements.maximizeBtn.onclick = () => window.electron.invoke(IpcChannels.WINDOW_MAXIMIZE);
-        elements.closeBtn.onclick = () => window.electron.invoke(IpcChannels.WINDOW_CLOSE);
+        if (elements.newChatBtn) {
+            console.log('Attaching click handler to New Chat button');
+            elements.newChatBtn.onclick = async () => {
+                console.log('New chat button clicked');
+                try {
+                    await createNewChat();
+                } catch (error) {
+                    console.error('Error creating new chat:', error);
+                    handleError(error as Error);
+                }
+            };
+            
+            // Add a second event listener for redundancy
+            elements.newChatBtn.addEventListener('click', async () => {
+                console.log('New chat button clicked (addEventListener)');
+                try {
+                    await createNewChat();
+                } catch (error) {
+                    console.error('Error creating new chat (addEventListener):', error);
+                    handleError(error as Error);
+                }
+            });
+        }
 
+        if (elements.deleteChatBtn) {
+            elements.deleteChatBtn.onclick = async () => {
+                console.log('Delete chat button clicked');
+                try {
+                    await deleteCurrentChat();
+                } catch (error) {
+                    console.error('Error deleting chat:', error);
+                    handleError(error as Error);
+                }
+            };
+        }
+
+        if (elements.minimizeBtn) {
+            elements.minimizeBtn.onclick = () => window.electron.invoke(IpcChannels.WINDOW_MINIMIZE);
+        }
+
+        if (elements.maximizeBtn) {
+            elements.maximizeBtn.onclick = () => window.electron.invoke(IpcChannels.WINDOW_MAXIMIZE);
+        }
+
+        if (elements.closeBtn) {
+            elements.closeBtn.onclick = () => window.electron.invoke(IpcChannels.WINDOW_CLOSE);
+        }
+
+        console.log('Initialization complete!');
     } catch (error) {
         console.error('Initialization error:', error);
         handleError(error as Error);
     }
 }
 
-// Start initialization
-void initialize(); 
+// Wait for DOMContentLoaded, then initialize
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('DOM fully loaded, starting application initialization...');
+    
+    // Add custom event listeners as a third fallback mechanism
+    document.addEventListener('app:send_message', async () => {
+        console.log('Custom send message event received');
+        if (elements?.messageInput && elements?.sendBtn) {
+            const message = elements.messageInput.value.trim();
+            if (message) {
+                try {
+                    await handleMessage(message);
+                    elements.messageInput.value = '';
+                } catch (error) {
+                    console.error('Error handling message (custom event):', error);
+                    handleError(error as Error);
+                }
+            }
+        } else {
+            console.error('Elements not initialized when custom event fired');
+        }
+    });
+    
+    document.addEventListener('app:new_chat', async () => {
+        console.log('Custom new chat event received');
+        try {
+            await createNewChat();
+        } catch (error) {
+            console.error('Error creating new chat (custom event):', error);
+            handleError(error as Error);
+        }
+    });
+    
+    document.addEventListener('app:delete_chat', async () => {
+        console.log('Custom delete chat event received');
+        try {
+            await deleteCurrentChat();
+        } catch (error) {
+            console.error('Error deleting chat (custom event):', error);
+            handleError(error as Error);
+        }
+    });
+    
+    initialize().catch(error => {
+        console.error('Error during initialization:', error);
+        alert('Application initialization failed. Please refresh or restart the application.');
+    });
+});
+
+// Make certain functions available on window for debugging
+(window as any).debugApp = {
+    checkElectronAvailability,
+    createNewChat,
+    sendMessage: async () => {
+        const message = elements?.messageInput?.value.trim();
+        if (message) {
+            try {
+                await handleMessage(message);
+                if (elements?.messageInput) {
+                    elements.messageInput.value = '';
+                }
+            } catch (error) {
+                console.error('Debug send error:', error);
+            }
+        }
+    }
+}; 

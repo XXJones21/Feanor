@@ -1,11 +1,12 @@
 import { ResumeAnalysisResult } from '../types/resume';
+import { IpcChannels } from '../types/electron';
 
 export async function analyzeResume(
   jobPosting: string,
   resumeContent: string
 ): Promise<ResumeAnalysisResult> {
   try {
-    const response = await window.electron.invoke('chat-completion', {
+    const response = await window.electron.invoke(IpcChannels.CHAT_COMPLETION, {
       messages: [
         {
           role: 'system',

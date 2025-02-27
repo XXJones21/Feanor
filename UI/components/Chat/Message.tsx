@@ -1,168 +1,176 @@
-import React, { lazy, Suspense } from 'react';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { cn } from '@/lib/utils';
-import { type MessageRole } from '@/types/chat';
-import { processMarkdown, formatCodeBlock, processInlineCode } from '@/lib/chat/markdown';
-
-const ReactMarkdown = lazy(() => import('react-markdown'));
+import * as React from "react"
+import { cn } from "@/lib/utils"
+import { Card, CardContent } from "../Common/Card"
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/Common/Avatar"
+import { Button } from "../Common/Button"
+import { Message as MessageType, MessageStatus, User, Attachment } from "@/types/chat"
 
 /**
- * Message component displays a chat message with support for markdown content,
- * code syntax highlighting, and streaming indicators.
- * 
- * @example
- * ```tsx
- * // Basic usage
- * <Message
- *   role="assistant"
- *   content="Hello, how can I help you?"
- * />
- * 
- * // With streaming indicator
- * <Message
- *   role="assistant"
- *   content="Processing your request..."
- *   isStreaming={true}
- * />
- * 
- * // With markdown content
- * <Message
- *   role="assistant"
- *   content="Here's some code: \`\`\`js\nconsole.log('hello');\n\`\`\`"
- * />
- * ```
+ * Props for the Message component
+ * Extends MessageType but converts timestamp to string for display
  */
-interface MessageProps {
-    /**
-     * The role of the message sender
-     */
-    role: MessageRole;
-    /**
-     * The content of the message. Supports markdown formatting.
-     * Special tags like <think></think> will be filtered out.
-     */
-    content: string;
-    /**
-     * Whether the message is currently streaming.
-     * When true, shows a blinking indicator and reduces opacity.
-     * @default false
-     */
-    isStreaming?: boolean;
-    /**
-     * Optional className for custom styling
-     */
-    className?: string;
+export interface MessageProps extends Omit<MessageType, 'timestamp'> {
+  timestamp: string; // Display format of the timestamp
+  isLastMessage?: boolean;
+  onRetry?: () => void;
+  onDelete?: () => void;
+  className?: string;
 }
 
-/**
- * Props for the code block component used in markdown rendering
- */
-interface CodeBlockProps {
-    /**
-     * AST node from markdown parsing
-     */
-    node?: any;
-    /**
-     * Whether the code is inline or a block
-     */
-    inline?: boolean;
-    /**
-     * CSS classes including language specification
-     */
-    className?: string;
-    /**
-     * The code content
-     */
-    children: React.ReactNode;
-    /**
-     * Additional props passed from markdown renderer
-     */
-    [key: string]: any;
+function formatFileSize(bytes: number): string {
+  const units = ["B", "KB", "MB", "GB"]
+  let size = bytes
+  let unitIndex = 0
+
+  while (size >= 1024 && unitIndex < units.length - 1) {
+    size /= 1024
+    unitIndex++
+  }
+
+  return `${size.toFixed(1)} ${units[unitIndex]}`
 }
 
-/**
- * Renders code blocks with syntax highlighting
- */
-const CodeBlock: React.FC<CodeBlockProps> = ({
-    inline,
-    className,
-    children,
-    ...props
-}) => {
-    const match = /language-(\w+)/.exec(className || '');
-    return !inline && match ? (
-        <SyntaxHighlighter
-            style={vscDarkPlus}
-            language={match[1]}
-            PreTag="div"
-            {...props}
-        >
-            {String(children).replace(/\n$/, '')}
-        </SyntaxHighlighter>
-    ) : (
-        <code className={cn('font-mono text-sm', className)} {...props}>
-            {children}
-        </code>
-    );
-};
+export function Message({
+  content,
+  timestamp,
+  sender,
+  attachments = [], // Provide default empty array
+  status,
+  error,
+  isStreaming,
+  isLastMessage,
+  onRetry,
+  onDelete,
+  className
+}: MessageProps) {
+  const isError = status === "error"
+  const isSending = status === "sending"
+  const [isVisible, setIsVisible] = React.useState(false)
 
-/**
- * Message component for displaying chat messages with markdown support
- */
-const Message: React.FC<MessageProps> = ({
-    role,
-    content,
-    isStreaming = false,
-    className
-}) => {
-    const processContent = (text: string): string => {
-        if (text && typeof text === 'string') {
-            if (text.includes('<think>') && text.includes('</think>')) {
-                return text.split('</think>')[1].trim();
-            }
-            return text;
-        }
-        return '';
-    };
+  React.useEffect(() => {
+    const timer = setTimeout(() => setIsVisible(true), 50)
+    return () => clearTimeout(timer)
+  }, [])
 
-    const processedContent = processContent(content);
-    const renderedContent = processMarkdown(processedContent, {
-        sanitize: true,
-        highlight: true,
-        breaks: true
-    });
-
-    return (
-        <div className={cn(
-            'relative max-w-[80%] animate-fade-in',
-            role === 'user' ? 'ml-auto' : 'mr-auto',
-            'my-4',
-            className
+  return (
+    <div
+      className={cn(
+        "flex gap-3 p-4 transition-all duration-200",
+        sender.isBot ? "bg-muted/50" : "bg-background",
+        isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
+      )}
+    >
+      <div className="flex gap-4">
+        <Avatar className={cn(
+          "h-8 w-8 transition-transform duration-200",
+          sender.isBot && "bg-primary text-primary-foreground",
+          isVisible ? "scale-100" : "scale-0"
         )}>
-            {isStreaming && (
-                <div className="absolute -top-5 left-0 flex items-center gap-1 text-xs text-primary animate-blink">
-                    <span>▋</span>
-                </div>
-            )}
-            <div className={cn(
-                'p-4 rounded-2xl shadow-sm transition-opacity duration-300',
-                role === 'user' 
-                    ? 'bg-primary text-primary-foreground' 
-                    : role === 'assistant'
-                    ? 'bg-card text-card-foreground'
-                    : 'bg-muted text-muted-foreground',
-                isStreaming && 'opacity-80'
-            )}>
-                <Suspense fallback={<div>Loading...</div>}>
-                    <div 
-                        className="prose dark:prose-invert max-w-none"
-                        dangerouslySetInnerHTML={{ __html: renderedContent }}
-                    />
-                </Suspense>
-            </div>
+          <AvatarImage src={sender.avatar} alt={sender.name} />
+          <AvatarFallback>{sender.name[0]}</AvatarFallback>
+        </Avatar>
+      </div>
+      <div className="flex-1 space-y-2">
+        <div className="flex items-center gap-2">
+          <span className="font-medium">{sender.name}</span>
+          <span className="text-xs text-muted-foreground">{timestamp}</span>
+          {status && (
+            <span
+              className={cn(
+                "text-xs transition-colors duration-200",
+                isError && "text-destructive",
+                isSending && "text-muted-foreground animate-pulse"
+              )}
+            >
+              {isError ? "Failed to send" : isSending ? "Sending..." : "Sent"}
+            </span>
+          )}
         </div>
-    );
-};
-
-export default Message; 
+        <div className="space-y-4">
+          <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
+            {content}
+          </p>
+          {attachments && attachments.length > 0 && (
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {attachments.map((attachment, index) => (
+                <Card
+                  key={attachment.id}
+                  className={cn(
+                    "overflow-hidden transition-all duration-200",
+                    isVisible
+                      ? "opacity-100 translate-y-0"
+                      : "opacity-0 translate-y-4",
+                    { "delay-100": index > 0 }
+                  )}
+                >
+                  {attachment.type === "image" ? (
+                    <img
+                      src={attachment.url}
+                      alt={attachment.name}
+                      className="aspect-video w-full object-cover"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <CardContent className="p-2">
+                      <div className="flex items-center gap-2">
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" />
+                          <polyline points="13 2 13 9 20 9" />
+                        </svg>
+                        <div className="flex-1 truncate">
+                          <p className="text-sm truncate">{attachment.name}</p>
+                          {attachment.size && (
+                            <p className="text-xs text-muted-foreground">
+                              {formatFileSize(attachment.size)}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  )}
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+        {isError && onRetry && (
+          <div
+            className={cn(
+              "flex items-center gap-2 pt-2 transition-all duration-200",
+              isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
+            )}
+          >
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onRetry}
+              className="h-auto p-0 text-destructive hover:text-destructive"
+            >
+              Retry
+            </Button>
+            {onDelete && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onDelete}
+                className="h-auto p-0 text-muted-foreground hover:text-foreground"
+              >
+                Delete
+              </Button>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+} 

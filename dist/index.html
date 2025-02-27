@@ -2,49 +2,58 @@
 <html>
 <head>
     <title>LM Studio Chat</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' data:; connect-src http://localhost:* http://127.0.0.1:*">
     <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
-    <div class="app-container">
-        <div class="sidebar">
+    <div class="app-layout">
+        <div class="sidebar-layout">
             <div class="title-bar">
                 <div class="window-controls">
-                    <button id="minimizeBtn" class="control minimize"></button>
-                    <button id="maximizeBtn" class="control maximize"></button>
-                    <button id="closeBtn" class="control close"></button>
+                    <button id="minimizeBtn" class="window-control window-control-minimize"></button>
+                    <button id="maximizeBtn" class="window-control window-control-maximize"></button>
+                    <button id="closeBtn" class="window-control window-control-close"></button>
                 </div>
             </div>
-            <button id="newChatBtn" class="new-chat-btn">+ New Chat</button>
+            <button id="newChatBtn" class="chat-button-new" onclick="console.log('New chat button clicked (inline)'); document.dispatchEvent(new CustomEvent('app:new_chat'));">+ New Chat</button>
             <div id="chatList" class="chat-list"></div>
-            <div class="chat-actions">
-                <button id="deleteChatBtn" class="delete-chat-btn" style="display: none;">🗑️ Delete Chat</button>
+            <div class="chat-section">
+                <button id="deleteChatBtn" class="chat-button-delete" style="display: none;" onclick="console.log('Delete chat button clicked (inline)'); document.dispatchEvent(new CustomEvent('app:delete_chat'));">🗑️ Delete Chat</button>
             </div>
-            <div id="toolsList" class="tools-list"></div>
-            <div class="status-indicator">
-                <div class="status-dot disconnected"></div>
+            <div id="toolsList" class="chat-section"></div>
+            <div class="status-bar">
+                <div class="status-indicator status-disconnected"></div>
                 <span class="status-text">Disconnected</span>
                 <span class="status-details"></span>
             </div>
         </div>
         <div class="chat-container">
             <div id="messageList" class="message-list"></div>
-            <div id="loadingIndicator" class="loading-container" style="display: none;">
+            <div id="loadingIndicator" class="loading" style="display: none;">
                 <div class="loading-dots">
-                    <div class="dot"></div>
-                    <div class="dot"></div>
-                    <div class="dot"></div>
+                    <div class="loading-dot loading-dot-1"></div>
+                    <div class="loading-dot loading-dot-2"></div>
+                    <div class="loading-dot loading-dot-3"></div>
                 </div>
             </div>
-            <div class="input-container">
+            <div class="input-section">
                 <div id="attachmentPreview" class="attachment-preview"></div>
-                <div class="input-area">
+                <div class="input-container">
                     <textarea id="messageInput" class="message-input" placeholder="Type a message..."></textarea>
-                    <button id="sendBtn" class="send-btn">Send</button>
+                    <button id="sendBtn" class="send-button" onclick="console.log('Send button clicked (inline)'); document.dispatchEvent(new CustomEvent('app:send_message'));">Send</button>
                 </div>
             </div>
         </div>
     </div>
-    <script src="./renderer.js" type="module" defer></script>
+    <script src="./renderer.js" defer></script>
+    <!-- Debug Panel -->
+    <div style="position: fixed; bottom: 10px; right: 10px; background: rgba(0,0,0,0.7); padding: 10px; border-radius: 5px; color: white; z-index: 9999;">
+        <div style="font-weight: bold; margin-bottom: 5px;">Debug Controls</div>
+        <button onclick="window.debugApp?.sendMessage()" style="background: #f44336; color: white; border: none; padding: 5px 10px; margin: 2px; border-radius: 3px;">Debug Send</button>
+        <button onclick="window.debugApp?.createNewChat()" style="background: #4CAF50; color: white; border: none; padding: 5px 10px; margin: 2px; border-radius: 3px;">Debug New Chat</button>
+        <button onclick="window.debugApp?.checkElectronAvailability()" style="background: #2196F3; color: white; border: none; padding: 5px 10px; margin: 2px; border-radius: 3px;">Check Electron</button>
+    </div>
 </body>
 </html> 

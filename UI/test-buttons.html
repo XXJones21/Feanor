@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Button Test</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        button {
+            padding: 10px 16px;
+            margin: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        #log {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>Button Test Page</h1>
+    
+    <button id="testBtn1">Test Button 1 (onclick)</button>
+    <button id="testBtn2">Test Button 2 (addEventListener)</button>
+    <button id="testBtn3">Test Button 3 (Both)</button>
+    
+    <div id="log"></div>
+
+    <script>
+        function logMessage(message) {
+            const log = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.textContent = `${new Date().toLocaleTimeString()}: ${message}`;
+            log.appendChild(entry);
+            log.scrollTop = log.scrollHeight;
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            logMessage('DOM fully loaded');
+
+            const testBtn1 = document.getElementById('testBtn1');
+            const testBtn2 = document.getElementById('testBtn2');
+            const testBtn3 = document.getElementById('testBtn3');
+
+            if (testBtn1) {
+                logMessage('Test Button 1 found');
+                testBtn1.onclick = () => {
+                    logMessage('Test Button 1 clicked (onclick)');
+                };
+            } else {
+                logMessage('ERROR: Test Button 1 NOT found');
+            }
+
+            if (testBtn2) {
+                logMessage('Test Button 2 found');
+                testBtn2.addEventListener('click', () => {
+                    logMessage('Test Button 2 clicked (addEventListener)');
+                });
+            } else {
+                logMessage('ERROR: Test Button 2 NOT found');
+            }
+
+            if (testBtn3) {
+                logMessage('Test Button 3 found');
+                // Using both methods
+                testBtn3.onclick = () => {
+                    logMessage('Test Button 3 clicked (onclick)');
+                };
+                testBtn3.addEventListener('click', () => {
+                    logMessage('Test Button 3 clicked (addEventListener)');
+                });
+            } else {
+                logMessage('ERROR: Test Button 3 NOT found');
+            }
+        });
+
+        // Add inline attributes to compare
+        window.clickFromAttribute = function() {
+            logMessage('Button clicked via onclick attribute');
+        }
+    </script>
+</body>
+</html> 

@@ -290,12 +290,12 @@
 ### Files to Convert
 
 #### Main Process Files
-- [ ] `src/main.js` → `UI/main.ts` (In Progress)
+- [x] `src/main.js` → `UI/main.ts`
   - [x] Basic TypeScript conversion
   - [x] Add type definitions
   - [x] Add error handling
-  - [ ] Test all functionality
-  - [ ] Remove old file
+  - [x] Test all functionality
+  - [x] Remove old file
 
 - [x] `src/preload.js` → `UI/preload.ts`
   - [x] Convert to TypeScript
@@ -375,3 +375,360 @@
   - [ ] Update build process
   - [ ] Test production build
   - [ ] Deploy updates
+
+## Module Bundling with Webpack
+
+### Overview
+Implementation of a robust webpack configuration to properly handle the Electron application's main process, preload scripts, and renderer process across all platforms (Windows, macOS, Linux) while optimizing for local LLM integration.
+
+### Phase 1: Project Structure & Dependencies
+
+#### 1. Install Required Dependencies
+```bash
+npm install --save-dev electron-webpack webpack webpack-cli typescript ts-loader
+npm install --save-dev @types/electron html-webpack-plugin copy-webpack-plugin
+npm install --save-dev css-loader style-loader file-loader
+```
+
+#### 2. Restructure Project Files
+```
+project/
+├── src/
+│   ├── main/             # Main process code
+│   │   ├── index.ts      # Entry point for main process
+│   │   └── ...
+│   ├── renderer/         # Renderer process code
+│   │   ├── index.ts      # Entry point for renderer
+│   │   ├── index.html    # HTML template
+│   │   └── ...
+│   ├── preload/          # Preload scripts
+│   │   └── index.ts      # Entry point for preload
+│   └── common/           # Shared code (constants, interfaces)
+│       └── ipc-channels.ts # Shared IPC channel definitions
+├── webpack/              # Webpack configurations
+│   ├── main.config.js
+│   ├── preload.config.js
+│   └── renderer.config.js
+└── package.json
+```
+
+### Phase 2: Webpack Configuration
+
+#### 1. Base Webpack Configuration (webpack/base.config.js)
+```javascript
+const path = require('path');
+
+module.exports = {
+  mode: process.env.NODE_ENV === 'production' ? 'production' : 'development',
+  devtool: 'source-map',
+  resolve: {
+    extensions: ['.ts', '.tsx', '.js', '.jsx', '.json'],
+    alias: {
+      '@common': path.resolve(__dirname, '../src/common')
+    }
+  },
+  module: {
+    rules: [
+      {
+        test: /\.tsx?$/,
+        use: 'ts-loader',
+        exclude: /node_modules/
+      }
+    ]
+  }
+};
+```
+
+#### 2. Main Process Config (webpack/main.config.js)
+```javascript
+const path = require('path');
+const { merge } = require('webpack-merge');
+const baseConfig = require('./base.config');
+
+module.exports = merge(baseConfig, {
+  target: 'electron-main',
+  entry: {
+    main: path.resolve(__dirname, '../src/main/index.ts')
+  },
+  output: {
+    path: path.resolve(__dirname, '../dist'),
+    filename: '[name].js'
+  },
+  node: {
+    __dirname: false,
+    __filename: false
+  }
+});
+```
+
+#### 3. Preload Config (webpack/preload.config.js)
+```javascript
+const path = require('path');
+const { merge } = require('webpack-merge');
+const baseConfig = require('./base.config');
+
+module.exports = merge(baseConfig, {
+  target: 'electron-preload',
+  entry: {
+    preload: path.resolve(__dirname, '../src/preload/index.ts')
+  },
+  output: {
+    path: path.resolve(__dirname, '../dist'),
+    filename: '[name].js'
+  }
+});
+```
+
+#### 4. Renderer Config (webpack/renderer.config.js)
+```javascript
+const path = require('path');
+const { merge } = require('webpack-merge');
+const HtmlWebpackPlugin = require('html-webpack-plugin');
+const baseConfig = require('./base.config');
+
+module.exports = merge(baseConfig, {
+  target: 'web',
+  entry: {
+    renderer: path.resolve(__dirname, '../src/renderer/index.ts')
+  },
+  output: {
+    path: path.resolve(__dirname, '../dist'),
+    filename: '[name].js'
+  },
+  module: {
+    rules: [
+      {
+        test: /\.css$/,
+        use: ['style-loader', 'css-loader']
+      },
+      {
+        test: /\.(png|jpg|gif|svg)$/,
+        use: 'file-loader'
+      }
+    ]
+  },
+  plugins: [
+    new HtmlWebpackPlugin({
+      template: path.resolve(__dirname, '../src/renderer/index.html')
+    })
+  ]
+});
+```
+
+### Phase 3: Shared Types and IPC
+
+#### 1. Create Common IPC Channel Definition (src/common/ipc-channels.ts)
+```typescript
+export enum IpcChannels {
+  CHAT_COMPLETION = 'chat-completion',
+  EXECUTE_TOOL = 'execute-tool',
+  GET_TOOLS = 'get-tools-config',
+  GET_CHAT_HISTORY = 'get-chat-history',
+  LOAD_CHAT = 'load-chat',
+  SAVE_CHAT = 'save-chat',
+  DELETE_CHAT = 'delete-chat',
+  SHOW_CONFIRM_DIALOG = 'show-confirm-dialog',
+  WINDOW_MINIMIZE = 'window-minimize',
+  WINDOW_MAXIMIZE = 'window-maximize',
+  WINDOW_CLOSE = 'window-close',
+  GET_MODELS = 'get-models',
+  GET_ACTIVE_MODEL = 'get-active-model'
+}
+
+// Common interfaces that need to be shared
+export interface ChatMessage {
+  id?: string;
+  role: 'system' | 'user' | 'assistant' | 'tool';
+  content: string;
+  name?: string;
+  timestamp?: number;
+}
+
+export interface Tool {
+  name: string;
+  description: string;
+  parameters: any;
+}
+
+export interface ToolsConfig {
+  tools: Tool[];
+}
+```
+
+### Phase 4: Update Package Scripts (package.json)
+```json
+{
+  "scripts": {
+    "build": "webpack --config webpack/main.config.js && webpack --config webpack/preload.config.js && webpack --config webpack/renderer.config.js",
+    "start": "electron ./dist/main.js",
+    "dev": "npm run build && npm run start",
+    "build:main": "webpack --config webpack/main.config.js",
+    "build:preload": "webpack --config webpack/preload.config.js",
+    "build:renderer": "webpack --config webpack/renderer.config.js"
+  }
+}
+```
+
+### Phase 5: Updating Existing Files
+
+#### 1. Update Preload Script (src/preload/index.ts)
+```typescript
+import { contextBridge, ipcRenderer } from 'electron';
+import { IpcChannels } from '@common/ipc-channels';
+
+// Add logging for debugging
+console.log('Preload script starting...');
+
+contextBridge.exposeInMainWorld('electron', {
+  invoke: (channel: string, data?: any) => {
+    console.log(`IPC invoke: ${channel}`, data);
+    if (Object.values(IpcChannels).includes(channel as IpcChannels)) {
+      return ipcRenderer.invoke(channel, data);
+    }
+    console.error(`Invalid channel: ${channel}`);
+    return Promise.reject(new Error(`Invalid channel: ${channel}`));
+  },
+  
+  on: (channel: string, callback: (...args: any[]) => void) => {
+    console.log('IPC Bridge on:', channel);
+    if (Object.values(IpcChannels).includes(channel as IpcChannels)) {
+      ipcRenderer.on(channel, (_event, ...args) => callback(...args));
+    }
+  },
+
+  removeAllListeners: (channel: string) => {
+    console.log('IPC Bridge removeAllListeners:', channel);
+    if (Object.values(IpcChannels).includes(channel as IpcChannels)) {
+      ipcRenderer.removeAllListeners(channel);
+    }
+  }
+});
+
+console.log('Preload script completed successfully');
+```
+
+#### 2. Update Renderer Entry (src/renderer/index.ts)
+```typescript
+import * as marked from 'marked';
+import * as hljs from 'highlight.js';
+import { IpcChannels, ChatMessage, Tool, ToolsConfig } from '@common/ipc-channels';
+import './styles.css';
+
+// The rest of your renderer code, but using imported types
+// and using the IpcChannels enum for channel names
+
+document.addEventListener('DOMContentLoaded', () => {
+  console.log('DOM loaded, initializing app...');
+  initialize();
+});
+
+async function initialize() {
+  // Your initialization code here
+}
+```
+
+#### 3. Update Main Process (src/main/index.ts)
+```typescript
+import { app, BrowserWindow, ipcMain } from 'electron';
+import * as path from 'path';
+import { IpcChannels } from '@common/ipc-channels';
+
+// Your existing main process code, updated to use the IpcChannels enum
+
+function createWindow() {
+  const mainWindow = new BrowserWindow({
+    width: 800,
+    height: 600,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false
+    }
+  });
+
+  mainWindow.loadFile(path.join(__dirname, 'index.html'));
+}
+
+app.whenReady().then(() => {
+  createWindow();
+});
+
+// IPC handlers
+ipcMain.handle(IpcChannels.CHAT_COMPLETION, async (event, data) => {
+  // Handle chat completion
+});
+
+// Other IPC handlers...
+```
+
+### Phase 6: Implementation Plan
+
+#### Stage 1: Project Setup (Est. 1 day)
+- [ ] Backup current codebase
+- [ ] Create new folder structure
+- [ ] Install required dependencies
+- [ ] Create initial webpack configuration files
+
+#### Stage 2: Shared Types (Est. 1 day)
+- [ ] Create common IPC channel definitions
+- [ ] Define shared interfaces
+- [ ] Set up proper type exports
+
+#### Stage 3: Renderer Process (Est. 2 days)
+- [ ] Configure webpack for renderer
+- [ ] Update HTML template for webpack
+- [ ] Migrate CSS handling to webpack
+- [ ] Test renderer build in isolation
+
+#### Stage 4: Preload Script (Est. 1 day)
+- [ ] Configure webpack for preload
+- [ ] Update preload script to use shared types
+- [ ] Test preload script in isolation
+
+#### Stage 5: Main Process (Est. 2 days)
+- [ ] Configure webpack for main process
+- [ ] Update main process to use shared types
+- [ ] Test main process in isolation
+
+#### Stage 6: Integration (Est. 2 days)
+- [ ] Integrate all processes
+- [ ] Test IPC communication
+- [ ] Fix any cross-process issues
+- [ ] Ensure proper type safety
+
+#### Stage 7: Cross-Platform Testing (Est. 2 days)
+- [ ] Test on Windows
+- [ ] Test on macOS
+- [ ] Test on Linux
+- [ ] Address platform-specific issues
+
+#### Stage 8: Performance Optimization (Est. 1 day)
+- [ ] Optimize bundle sizes
+- [ ] Implement code splitting where needed
+- [ ] Address any performance bottlenecks
+
+### Key Benefits
+1. **Cross-Platform Consistency**: Path handling and module resolution work reliably across Windows, macOS, and Linux
+2. **Type Safety**: Shared interfaces ensure type consistency between processes
+3. **Build Optimization**: Webpack optimizes bundle sizes for better performance with local LLMs
+4. **Maintainability**: Cleaner project structure with clear separation of concerns
+5. **Development Experience**: Better tooling support and debugging capabilities
+
+### Migration Considerations
+1. **Backward Compatibility**:
+   - Ensure existing functionality works during migration
+   - Consider creating a compatibility layer during transition
+
+2. **Testing Strategy**:
+   - Create tests for each component before migration
+   - Compare behavior before and after migration
+
+3. **Error Handling**:
+   - Improve error reporting across processes
+   - Add better logging for cross-process communication
+
+4. **Progressive Implementation**:
+   - Start with renderer process (user-facing)
+   - Then integrate preload script
+   - Finally update main process
+   - This allows for incremental testing and validation

@@ -10,7 +10,12 @@ const SYSTEM_MESSAGE = {
     content: 'You are a helpful AI assistant. Provide direct, concise answers without showing your thinking process. Focus on accuracy and clarity.',
     id: 'system-message',
     timestamp: Date.now(),
-    status: 'complete'
+    status: 'sent',
+    sender: {
+        id: 'system',
+        name: 'System',
+        avatar: undefined
+    }
 };
 const useChatHistory = () => {
     const [messages, setMessages] = (0, react_1.useState)([]);
@@ -60,7 +65,7 @@ const useChatHistory = () => {
             ...message,
             id: message.id || crypto.randomUUID(),
             timestamp: message.timestamp || Date.now(),
-            status: 'complete'
+            status: 'sent'
         };
         setMessages(prevMessages => {
             const updatedMessages = [...prevMessages, newMessage];

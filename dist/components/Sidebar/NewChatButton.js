@@ -1,30 +1,9 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.NewChatButton = NewChatButton;
 const jsx_runtime_1 = require("react/jsx-runtime");
-const react_1 = __importDefault(require("react"));
-const styled_components_1 = __importDefault(require("styled-components"));
-const framer_motion_1 = require("framer-motion");
-const Button = (0, styled_components_1.default)(framer_motion_1.motion.button) `
-    width: 90%;
-    margin: 1rem auto;
-    padding: 0.75rem;
-    border-radius: 8px;
-    border: none;
-    background: ${props => props.theme.colors.primary};
-    color: white;
-    font-weight: 600;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-
-    &:hover {
-        background: ${props => props.theme.colors.primaryDark};
-    }
-`;
-const NewChatButton = ({ onClick }) => ((0, jsx_runtime_1.jsxs)(Button, { onClick: onClick, whileHover: { scale: 1.02 }, whileTap: { scale: 0.98 }, children: [(0, jsx_runtime_1.jsx)("span", { children: "+" }), (0, jsx_runtime_1.jsx)("span", { children: "New Chat" })] }));
-exports.default = NewChatButton;
+const Button_1 = require("../Common/Button");
+const utils_1 = require("@/lib/utils");
+function NewChatButton({ className, isCollapsed = false, ...props }) {
+    return ((0, jsx_runtime_1.jsxs)(Button_1.Button, { className: (0, utils_1.cn)("w-full justify-start gap-2", isCollapsed && "justify-center", className), ...props, children: [(0, jsx_runtime_1.jsx)("svg", { xmlns: "http://www.w3.org/2000/svg", width: "16", height: "16", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", children: (0, jsx_runtime_1.jsx)("path", { d: "M12 5v14M5 12h14" }) }), !isCollapsed && (0, jsx_runtime_1.jsx)("span", { children: "New Chat" })] }));
+}

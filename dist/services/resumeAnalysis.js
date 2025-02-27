@@ -1,9 +1,10 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.analyzeResume = analyzeResume;
+const electron_1 = require("../types/electron");
 async function analyzeResume(jobPosting, resumeContent) {
     try {
-        const response = await window.electron.invoke('chat-completion', {
+        const response = await window.electron.invoke(electron_1.IpcChannels.CHAT_COMPLETION, {
             messages: [
                 {
                     role: 'system',

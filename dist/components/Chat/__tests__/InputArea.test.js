@@ -1,13 +1,10 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 const jsx_runtime_1 = require("react/jsx-runtime");
 const vitest_1 = require("vitest");
 const react_1 = require("@testing-library/react");
 const user_event_1 = require("@testing-library/user-event");
-const InputArea_1 = __importDefault(require("../InputArea"));
+const InputArea_1 = require("../InputArea");
 // Mock framer-motion to avoid animation issues in tests
 vitest_1.vi.mock('framer-motion', () => ({
     motion: {
@@ -29,18 +26,18 @@ vitest_1.vi.mock('@/lib/utils', () => ({
         vitest_1.vi.clearAllMocks();
     });
     (0, vitest_1.it)('renders correctly', () => {
-        (0, react_1.render)((0, jsx_runtime_1.jsx)(InputArea_1.default, { ...defaultProps }));
+        (0, react_1.render)((0, jsx_runtime_1.jsx)(InputArea_1.InputArea, { ...defaultProps }));
         (0, vitest_1.expect)(react_1.screen.getByPlaceholderText('Type a message...')).toBeDefined();
         (0, vitest_1.expect)(react_1.screen.getByText('Send')).toBeDefined();
     });
     (0, vitest_1.it)('handles text input correctly', async () => {
-        (0, react_1.render)((0, jsx_runtime_1.jsx)(InputArea_1.default, { ...defaultProps }));
+        (0, react_1.render)((0, jsx_runtime_1.jsx)(InputArea_1.InputArea, { ...defaultProps }));
         const textarea = react_1.screen.getByPlaceholderText('Type a message...');
         await user_event_1.userEvent.type(textarea, 'Hello, world!');
         (0, vitest_1.expect)(textarea.value).toBe('Hello, world!');
     });
     (0, vitest_1.it)('sends message on button click', async () => {
-        (0, react_1.render)((0, jsx_runtime_1.jsx)(InputArea_1.default, { ...defaultProps }));
+        (0, react_1.render)((0, jsx_runtime_1.jsx)(InputArea_1.InputArea, { ...defaultProps }));
         const textarea = react_1.screen.getByPlaceholderText('Type a message...');
         const sendButton = react_1.screen.getByText('Send');
         await user_event_1.userEvent.type(textarea, 'Test message');
@@ -49,7 +46,7 @@ vitest_1.vi.mock('@/lib/utils', () => ({
         (0, vitest_1.expect)(textarea.value).toBe('');
     });
     (0, vitest_1.it)('sends message on Enter key', async () => {
-        (0, react_1.render)((0, jsx_runtime_1.jsx)(InputArea_1.default, { ...defaultProps }));
+        (0, react_1.render)((0, jsx_runtime_1.jsx)(InputArea_1.InputArea, { ...defaultProps }));
         const textarea = react_1.screen.getByPlaceholderText('Type a message...');
         await user_event_1.userEvent.type(textarea, 'Test message');
         await user_event_1.userEvent.keyboard('{Enter}');
@@ -57,13 +54,13 @@ vitest_1.vi.mock('@/lib/utils', () => ({
         (0, vitest_1.expect)(textarea.value).toBe('');
     });
     (0, vitest_1.it)('does not send empty messages', async () => {
-        (0, react_1.render)((0, jsx_runtime_1.jsx)(InputArea_1.default, { ...defaultProps }));
+        (0, react_1.render)((0, jsx_runtime_1.jsx)(InputArea_1.InputArea, { ...defaultProps }));
         const sendButton = react_1.screen.getByText('Send');
         await user_event_1.userEvent.click(sendButton);
         (0, vitest_1.expect)(mockOnSendMessage).not.toHaveBeenCalled();
     });
     (0, vitest_1.it)('handles loading state correctly', () => {
-        (0, react_1.render)((0, jsx_runtime_1.jsx)(InputArea_1.default, { ...defaultProps, isLoading: true }));
+        (0, react_1.render)((0, jsx_runtime_1.jsx)(InputArea_1.InputArea, { ...defaultProps, isLoading: true }));
         const textarea = react_1.screen.getByPlaceholderText('Type a message...');
         const sendButton = react_1.screen.getByText('Sending...');
         (0, vitest_1.expect)(textarea.disabled).toBe(true);
@@ -76,7 +73,7 @@ vitest_1.vi.mock('@/lib/utils', () => ({
                 { type: 'image/png', getAsFile: () => file }
             ]
         };
-        (0, react_1.render)((0, jsx_runtime_1.jsx)(InputArea_1.default, { ...defaultProps }));
+        (0, react_1.render)((0, jsx_runtime_1.jsx)(InputArea_1.InputArea, { ...defaultProps }));
         const textarea = react_1.screen.getByPlaceholderText('Type a message...');
         react_1.fireEvent.paste(textarea, { clipboardData });
         const attachmentText = await react_1.screen.findByText('📎 test.png');
@@ -84,7 +81,7 @@ vitest_1.vi.mock('@/lib/utils', () => ({
     });
     (0, vitest_1.it)('handles file drop', async () => {
         const file = new File(['test'], 'test.png', { type: 'image/png' });
-        (0, react_1.render)((0, jsx_runtime_1.jsx)(InputArea_1.default, { ...defaultProps }));
+        (0, react_1.render)((0, jsx_runtime_1.jsx)(InputArea_1.InputArea, { ...defaultProps }));
         const textarea = react_1.screen.getByPlaceholderText('Type a message...');
         react_1.fireEvent.drop(textarea, {
             dataTransfer: {
@@ -96,7 +93,7 @@ vitest_1.vi.mock('@/lib/utils', () => ({
     });
     (0, vitest_1.it)('allows removing attachments', async () => {
         const file = new File(['test'], 'test.png', { type: 'image/png' });
-        (0, react_1.render)((0, jsx_runtime_1.jsx)(InputArea_1.default, { ...defaultProps }));
+        (0, react_1.render)((0, jsx_runtime_1.jsx)(InputArea_1.InputArea, { ...defaultProps }));
         const textarea = react_1.screen.getByPlaceholderText('Type a message...');
         react_1.fireEvent.drop(textarea, {
             dataTransfer: {
@@ -113,7 +110,7 @@ vitest_1.vi.mock('@/lib/utils', () => ({
         const mockError = new Error('Failed to send');
         const mockOnSendMessageWithError = vitest_1.vi.fn().mockRejectedValue(mockError);
         const consoleSpy = vitest_1.vi.spyOn(console, 'error').mockImplementation(() => { });
-        (0, react_1.render)((0, jsx_runtime_1.jsx)(InputArea_1.default, { onSendMessage: mockOnSendMessageWithError }));
+        (0, react_1.render)((0, jsx_runtime_1.jsx)(InputArea_1.InputArea, { onSendMessage: mockOnSendMessageWithError }));
         const textarea = react_1.screen.getByPlaceholderText('Type a message...');
         await user_event_1.userEvent.type(textarea, 'Test message');
         await user_event_1.userEvent.click(react_1.screen.getByText('Send'));

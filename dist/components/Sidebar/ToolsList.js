@@ -32,55 +32,20 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.ToolsList = ToolsList;
 const jsx_runtime_1 = require("react/jsx-runtime");
-const react_1 = __importStar(require("react"));
-const styled_components_1 = __importDefault(require("styled-components"));
-const framer_motion_1 = require("framer-motion");
-const ToolsContainer = styled_components_1.default.div `
-    border-top: 1px solid ${props => props.theme.colors.border};
-    padding: 1rem;
-`;
-const ToolsHeader = styled_components_1.default.div `
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 0.5rem;
-    color: ${props => props.theme.colors.textLight};
-    font-size: 0.9rem;
-    cursor: pointer;
-`;
-const ToolsListContainer = (0, styled_components_1.default)(framer_motion_1.motion.div) `
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-`;
-const ToolItem = (0, styled_components_1.default)(framer_motion_1.motion.div) `
-    padding: 0.75rem;
-    border-radius: 8px;
-    background: ${props => props.theme.colors.backgroundLight};
-    cursor: pointer;
-    font-size: 0.9rem;
-
-    &:hover {
-        background: ${props => props.theme.colors.primaryLight};
-    }
-
-    .tool-name {
-        font-weight: 600;
-        margin-bottom: 0.25rem;
-    }
-
-    .tool-description {
-        font-size: 0.8rem;
-        color: ${props => props.theme.colors.textLight};
-    }
-`;
-const ToolsList = ({ tools, onToolSelect }) => {
-    const [isExpanded, setIsExpanded] = (0, react_1.useState)(true);
-    return ((0, jsx_runtime_1.jsxs)(ToolsContainer, { children: [(0, jsx_runtime_1.jsxs)(ToolsHeader, { onClick: () => setIsExpanded(!isExpanded), children: [(0, jsx_runtime_1.jsx)("span", { children: "Available Tools" }), (0, jsx_runtime_1.jsx)("span", { children: isExpanded ? '▼' : '▶' })] }), (0, jsx_runtime_1.jsx)(framer_motion_1.AnimatePresence, { children: isExpanded && ((0, jsx_runtime_1.jsx)(ToolsListContainer, { initial: { opacity: 0, height: 0 }, animate: { opacity: 1, height: 'auto' }, exit: { opacity: 0, height: 0 }, children: tools.map(tool => ((0, jsx_runtime_1.jsxs)(ToolItem, { onClick: () => onToolSelect(tool.name), whileHover: { scale: 1.02 }, whileTap: { scale: 0.98 }, children: [(0, jsx_runtime_1.jsx)("div", { className: "tool-name", children: tool.name }), (0, jsx_runtime_1.jsx)("div", { className: "tool-description", children: tool.description })] }, tool.name))) })) })] }));
-};
-exports.default = ToolsList;
+const React = __importStar(require("react"));
+const utils_1 = require("@/lib/utils");
+const useTools_1 = require("@/hooks/useTools");
+function ToolsList({ onSelectTool, isCollapsed = false, className, }) {
+    const { tools, selectedTool, selectTool } = (0, useTools_1.useTools)();
+    const handleToolClick = React.useCallback((tool) => {
+        selectTool(tool.id);
+        onSelectTool(tool.id);
+    }, [selectTool, onSelectTool]);
+    return ((0, jsx_runtime_1.jsx)("div", { className: (0, utils_1.cn)("py-2 space-y-1", className), children: tools.map((tool) => ((0, jsx_runtime_1.jsx)(ToolItem, { tool: tool, isCollapsed: isCollapsed, isActive: selectedTool?.id === tool.id, onClick: () => handleToolClick(tool) }, tool.id))) }));
+}
+function ToolItem({ tool, isCollapsed, isActive, onClick, }) {
+    return ((0, jsx_runtime_1.jsxs)("button", { onClick: onClick, className: (0, utils_1.cn)("flex items-center w-full px-4 py-2 text-sm transition-colors", "hover:bg-accent hover:text-accent-foreground", isActive && "bg-accent text-accent-foreground", isCollapsed ? "justify-center" : "gap-3"), children: [(0, jsx_runtime_1.jsx)("div", { className: "flex-shrink-0", children: tool.icon }), !isCollapsed && ((0, jsx_runtime_1.jsxs)("div", { className: "flex flex-col items-start text-left", children: [(0, jsx_runtime_1.jsx)("span", { className: "font-medium", children: tool.name }), tool.description && ((0, jsx_runtime_1.jsx)("span", { className: "text-xs text-muted-foreground", children: tool.description }))] }))] }));
+}

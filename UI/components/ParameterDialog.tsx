@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Tool, ToolParameter } from '../types/chat';
+import { Button } from './Common/Button';
 
 interface ParameterDialogProps {
     tool: Tool | null;
@@ -45,12 +46,13 @@ const ParameterInput: React.FC<ParameterInputProps> = ({ name, info, value, onCh
                     className="flex-1 px-3 py-2 bg-background border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                 />
                 {isPathInput && (
-                    <button
+                    <Button 
                         onClick={handleBrowsePath}
-                        className="px-4 py-2 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/90"
+                        variant="secondary"
+                        size="default"
                     >
                         Browse...
-                    </button>
+                    </Button>
                 )}
             </div>
             {info.description && (
@@ -113,42 +115,45 @@ const ParameterDialog: React.FC<ParameterDialogProps> = ({
     if (!isOpen || !tool) return null;
 
     return (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center">
+        <div className="dialog-overlay">
             <div 
                 ref={dialogRef}
-                className="bg-card w-full max-w-lg rounded-lg shadow-lg"
+                className="dialog-content"
             >
-                <div className="p-6">
-                    <h2 className="text-xl font-semibold mb-4">
+                <div className="dialog-header">
+                    <h2 className="dialog-title">
                         Use {tool.name}
                     </h2>
-                    
-                    <div className="space-y-4">
-                        {Object.entries(tool.parameters.properties).map(([name, info]) => (
-                            <ParameterInput
-                                key={name}
-                                name={name}
-                                info={info}
-                                value={parameters[name] || ''}
-                                onChange={(value) => handleParameterChange(name, value)}
-                            />
-                        ))}
-                    </div>
+                    <p className="dialog-description">
+                        Configure the parameters for this tool
+                    </p>
+                </div>
+                
+                <div className="dialog-body">
+                    {Object.entries(tool.parameters.properties).map(([name, info]) => (
+                        <ParameterInput
+                            key={name}
+                            name={name}
+                            info={info}
+                            value={parameters[name] || ''}
+                            onChange={(value) => handleParameterChange(name, value)}
+                        />
+                    ))}
+                </div>
 
-                    <div className="mt-6 flex justify-end space-x-2">
-                        <button
-                            onClick={onCancel}
-                            className="px-4 py-2 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/90"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            onClick={handleConfirm}
-                            className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
-                        >
-                            OK
-                        </button>
-                    </div>
+                <div className="dialog-footer">
+                    <Button
+                        onClick={onCancel}
+                        variant="secondary"
+                    >
+                        Cancel
+                    </Button>
+                    <Button
+                        onClick={handleConfirm}
+                        variant="default"
+                    >
+                        Confirm
+                    </Button>
                 </div>
             </div>
         </div>

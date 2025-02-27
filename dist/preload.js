@@ -1,90 +1,40 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const electron_1 = require("electron");
-const electron_2 = require("./types/electron");
-/**
- * Helper function to convert Electron's response to a web Response
- */
-async function createResponseFromStream(streamResponse) {
-    // Create a ReadableStream to handle the streaming data
-    const stream = new ReadableStream({
-        start(controller) {
-            // Handle incoming chunks
-            streamResponse.on('data', (chunk) => {
-                try {
-                    // Ensure chunk is a Buffer or convert it
-                    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
-                    controller.enqueue(buffer);
-                }
-                catch (error) {
-                    controller.error(error);
-                }
-            });
-            // Handle stream completion
-            streamResponse.on('end', () => {
-                controller.close();
-            });
-            // Handle errors
-            streamResponse.on('error', (error) => {
-                controller.error(error);
-            });
-        },
-        cancel() {
-            // Cleanup if the stream is cancelled
-            if ('destroy' in streamResponse) {
-                streamResponse.destroy();
-            }
-        }
-    });
-    // Return a Response object that can be used by the renderer
-    return new Response(stream, {
-        headers: {
-            'Content-Type': 'text/event-stream',
-            'Cache-Control': 'no-cache',
-            'Connection': 'keep-alive'
-        }
-    });
-}
-// Log all IPC messages for debugging
-electron_1.ipcRenderer.on('ipc-log', (_event, message) => {
-    console.log('IPC Log:', message);
-});
-// Expose protected methods that allow the renderer process to use
-// specific electron APIs through a secure bridge
-const electronBridge = {
-    invoke: async (channel, data) => {
-        console.log('IPC Bridge invoke:', {
-            channel,
-            data: data ? {
-                ...data,
-                messages: data.messages?.map((m) => ({
-                    role: m.role,
-                    content: m.content
-                }))
-            } : undefined
-        });
-        try {
-            const response = await electron_1.ipcRenderer.invoke(channel, data);
-            console.log('IPC Bridge response received for channel:', {
-                channel,
-                timestamp: new Date().toISOString(),
-                status: 'success'
-            });
-            return response;
-        }
-        catch (error) {
-            console.error('IPC Bridge error:', {
-                channel,
-                error: error instanceof Error ? error.message : 'Unknown error',
-                stack: error instanceof Error ? error.stack : undefined,
-                timestamp: new Date().toISOString()
-            });
-            throw error;
-        }
+// Simplified IPC channels const to avoid import issues
+const IpcChannels = {
+    CHAT_COMPLETION: 'chat-completion',
+    CHAT_COMPLETION_STREAM: 'chat-completion-stream',
+    EXECUTE_TOOL: 'execute-tool',
+    GET_TOOLS: 'get-tools-config',
+    GET_TOOLS_CONFIG: 'get-tools-config',
+    GET_CHAT_HISTORY: 'get-chat-history',
+    LOAD_CHAT: 'load-chat',
+    SAVE_CHAT: 'save-chat',
+    DELETE_CHAT: 'delete-chat',
+    SHOW_CONFIRM_DIALOG: 'show-confirm-dialog',
+    SHOW_OPEN_DIALOG: 'show-open-dialog',
+    ANALYZE_FILE: 'analyze-file',
+    PROCESS_MESSAGE: 'process-message',
+    WINDOW_MINIMIZE: 'window-minimize',
+    WINDOW_MAXIMIZE: 'window-maximize',
+    WINDOW_CLOSE: 'window-close',
+    GET_MODELS: 'get-models',
+    GET_ACTIVE_MODEL: 'get-active-model'
+};
+// Add logging for debugging
+console.log('Preload script starting...');
+// Expose protected methods that allow the renderer process to use IPC
+electron_1.contextBridge.exposeInMainWorld('electron', {
+    invoke: (channel, data) => {
+        // Log for debugging
+        console.log(`IPC invoke: ${channel}`, data);
+        return electron_1.ipcRenderer.invoke(channel, data);
     },
     showOpenDialog: async () => {
         try {
-            const result = await electron_1.ipcRenderer.invoke(electron_2.IpcChannels.SHOW_OPEN_DIALOG);
+            console.log('Showing open dialog');
+            const result = await electron_1.ipcRenderer.invoke(IpcChannels.SHOW_OPEN_DIALOG);
             return result || null;
         }
         catch (error) {
@@ -100,6 +50,5 @@ const electronBridge = {
         console.log('IPC Bridge removeAllListeners:', channel);
         electron_1.ipcRenderer.removeAllListeners(channel);
     }
-};
-// Expose the bridge to the renderer process
-electron_1.contextBridge.exposeInMainWorld('electron', electronBridge);
+});
+console.log('Preload script completed successfully');
